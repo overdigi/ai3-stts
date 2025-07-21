@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="pragma" content="no-cache">
+    <meta http-equiv="expires" content="0">
+    <title>AI3-STTS Demo - 1966長照專線</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .header {
+            background: #4a90e2;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar-icon {
+            width: 30px;
+            height: 30px;
+            background: #ff6b35;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .header-text {
+            flex: 1;
+        }
+
+        .header-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .heygen-container {
+            width: 100%;
+            height: 300px;
+            background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .heygen-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .transcript-area {
+            background: #f8f9fa;
+            min-height: 120px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .transcript-content {
+            width: 100%;
+            text-align: center;
+            color: #666;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        .transcript-text {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .mic-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: #ff6b35;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000; /* 確保按鈕在最上層 */
+        }
+
+        .mic-button:hover {
+            background: #e55a2b;
+            transform: scale(1.1);
+        }
+
+        .mic-button.recording {
+            background: #dc3545;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .input-area {
+            padding: 15px 20px;
+            background: white;
+            border-top: 1px solid #eee;
+        }
+
+        .input-placeholder {
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .input-counter {
+            text-align: right;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .status-indicator {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-ready {
+            color: #28a745;
+        }
+
+        .status-listening {
+            color: #ffc107;
+        }
+
+        .status-processing {
+            color: #007bff;
+        }
+
+        .status-error {
+            color: #dc3545;
+        }
+
+        .permission-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .permission-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 300px;
+            text-align: center;
+        }
+
+        .permission-icon {
+            width: 60px;
+            height: 60px;
+            background: #ff6b35;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            color: white;
+        }
+
+        .permission-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .permission-text {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .permission-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #4a90e2;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #357abd;
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="avatar-icon">🤖</div>
+            <div class="header-text">
+                <div class="header-title">1966長照專線</div>
+            </div>
+        </div>
+
+        <!-- HeyGen Avatar -->
+        <div class="heygen-container">
+            <iframe id="heygen-iframe" class="heygen-iframe"></iframe>
+            <div class="status-indicator status-ready" id="status-indicator">
+                準備就緒
+            </div>
+        </div>
+
+        <!-- Transcript Area -->
+        <div class="transcript-area">
+            <div class="transcript-content" id="transcript-content">
+                <div class="transcript-text" id="transcript-text">點擊麥克風開始說話</div>
+            </div>
+            <button class="mic-button" id="mic-button">
+                🎤
+            </button>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <div class="input-placeholder">想要問什麼都可以？</div>
+            <div class="input-counter">0/1000</div>
+        </div>
+    </div>
+
+    <!-- Permission Modal -->
+    <div class="permission-modal hidden" id="permission-modal">
+        <div class="permission-content">
+            <div class="permission-icon">🎤</div>
+            <div class="permission-title">要允許「1966長照專線」使用你的麥克風嗎？</div>
+            <div class="permission-text">使用於輸入語音服務，不會儲存或寄出任何作品，詳見隱私權政策。</div>
+            <div class="permission-buttons">
+                <button class="btn btn-secondary" onclick="denyPermission()">不允許</button>
+                <button class="btn btn-primary" onclick="allowPermission()">允許</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Socket.io -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <!-- AI3-STTS SDK -->
+    <script src="ai3-stts.js"></script>
+    <!-- App Script -->
+    <script src="app.js"></script>
+</body>
+</html>

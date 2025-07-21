@@ -1,70 +1,70 @@
 # AI3-STTS 開發任務清單
 
-## 專案初始化
-- [ ] 建立專案基本結構
-- [ ] 初始化 Git 版本控制
-- [ ] 建立 .gitignore 文件
+## 專案初始化 ✅
+- [x] 建立專案基本結構
+- [x] 初始化 Git 版本控制
+- [x] 建立 .gitignore 文件
 
-## 後端開發 (NestJS)
+## 後端開發 (NestJS) ✅
 
-### 環境設置
-- [ ] 初始化 NestJS 專案
-- [ ] 安裝必要依賴套件
-  - [ ] @nestjs/websockets
-  - [ ] @nestjs/platform-socket.io
-  - [ ] @azure/cognitiveservices-speech-sdk
-  - [ ] axios (for HeyGen API)
-- [ ] 建立環境變數範本 (.env.example)
-- [ ] 設定 TypeScript 配置
+### 環境設置 ✅
+- [x] 初始化 NestJS 專案
+- [x] 安裝必要依賴套件
+  - [x] @nestjs/websockets
+  - [x] @nestjs/platform-socket.io
+  - [x] microsoft-cognitiveservices-speech-sdk
+  - [x] axios (for HeyGen API)
+- [x] 建立環境變數範本 (.env.example)
+- [x] 設定 TypeScript 配置
 
-### 核心模組開發
-- [ ] 建立 STT 模組
-  - [ ] STT Controller
-  - [ ] STT Service
-  - [ ] WebSocket Gateway
-  - [ ] Azure STT 整合
-- [ ] 建立 HeyGen 模組
-  - [ ] HeyGen Controller
-  - [ ] HeyGen Service
-  - [ ] API 整合
-  - [ ] iframe 生成功能
-- [ ] 實作 API 認證中介軟體
-- [ ] 設定 CORS 政策
+### 核心模組開發 ✅
+- [x] 建立 STT 模組
+  - [x] STT Controller
+  - [x] STT Service
+  - [x] WebSocket Gateway
+  - [x] Azure STT 整合
+- [x] 建立 HeyGen 模組
+  - [x] HeyGen Controller
+  - [x] HeyGen Service
+  - [x] API 整合
+  - [x] iframe 生成功能
+- [x] 實作 API 認證中介軟體
+- [x] 設定 CORS 政策
 
-### API 端點實作
-- [ ] WebSocket `/stt` 端點
-- [ ] POST `/heygen/speak` 端點
-- [ ] GET `/heygen/config` 端點
-- [ ] GET `/heygen/iframe/:avatarId` 端點
+### API 端點實作 ✅
+- [x] WebSocket `/stt` 端點
+- [x] POST `/heygen/speak` 端點
+- [x] GET `/heygen/config` 端點
+- [x] GET `/heygen/iframe/:avatarId` 端點
 
-## SDK 開發
+## SDK 開發 ✅
 
-### SDK 基礎設置
-- [ ] 初始化 TypeScript 專案
-- [ ] 設定 Rollup 建構配置
-- [ ] 建立 package.json 配置
+### SDK 基礎設置 ✅
+- [x] 初始化 TypeScript 專案
+- [x] 設定 Rollup 建構配置
+- [x] 建立 package.json 配置
 
-### SDK 功能實作
-- [ ] AI3STTS 主類別
-- [ ] STT Session 管理
-- [ ] WebSocket 連線處理
-- [ ] HeyGen API 包裝
-- [ ] 錯誤處理機制
-- [ ] 事件管理系統
+### SDK 功能實作 ✅
+- [x] AI3STTS 主類別
+- [x] STT Session 管理
+- [x] WebSocket 連線處理
+- [x] HeyGen API 包裝
+- [x] 錯誤處理機制
+- [x] 事件管理系統
 
-### SDK 建構與發布
-- [ ] 建立開發版本 (ai3-stts.js)
-- [ ] 建立壓縮版本 (ai3-stts.min.js)
-- [ ] 準備 NPM 發布配置
-- [ ] 建立 SDK 文件
+### SDK 建構與發布 ✅
+- [x] 建立開發版本 (ai3-stts.js)
+- [x] 建立壓縮版本 (ai3-stts.min.js)
+- [x] 準備 NPM 發布配置
+- [x] 建立 SDK 文件
 
-## 範例應用程式
-- [ ] 建立 index.html
-- [ ] 實作錄音功能
-- [ ] 整合 STT 功能
-- [ ] 整合 HeyGen iframe
-- [ ] 建立使用者介面
-- [ ] 錯誤處理與提示
+## 範例應用程式 ✅
+- [x] 建立 index.html
+- [x] 實作錄音功能
+- [x] 整合 STT 功能
+- [x] 整合 HeyGen iframe
+- [x] 建立使用者介面
+- [x] 錯誤處理與提示
 
 ## 測試
 
