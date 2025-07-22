@@ -13,6 +13,9 @@ class AI3STTSDemo {
         this.statusIndicator = document.getElementById('status-indicator');
         this.heygenIframe = document.getElementById('heygen-iframe');
         this.permissionModal = document.getElementById('permission-modal');
+        this.textInput = document.getElementById('text-input');
+        this.sendButton = document.getElementById('send-button');
+        this.inputCounter = document.getElementById('input-counter');
         
         // 檢查元素是否正確找到
         console.log('UI Elements check:');
@@ -72,8 +75,8 @@ class AI3STTSDemo {
                 defaultVoiceId: 'default-voice'
             };
 
-            // 載入真正的 HeyGen iframe
-            this.loadRealHeyGenIframe();
+            // 使用新的 iframe API
+            this.loadHeyGenIframe();
             
             console.log('HeyGen avatar 配置完成:', this.avatarConfig);
 
@@ -81,90 +84,24 @@ class AI3STTSDemo {
             console.error('載入 HeyGen avatar 失敗:', error);
         }
     }
-
-    loadRealHeyGenIframe() {
-        // 移除現有的 iframe 內容
-        this.heygenIframe.style.display = 'none';
+    
+    loadHeyGenIframe() {
+        const container = document.querySelector('.heygen-container');
+        const iframeUrl = `http://localhost:3000/heygen/iframe/${this.avatarConfig.id}`;
         
-        // 載入真正的 HeyGen 腳本
-        const script = document.createElement('script');
-        script.innerHTML = `
-            !function(window){
-                const host="https://labs.heygen.com",
-                url=host+"/guest/streaming-embed?share=eyJxdWFsaXR5IjoiaGlnaCIsImF2YXRhck5hbWUiOiJiYzEzZGQxNzQ4OGE0NGZmYTQ2ZjBjY2Iy%0D%0ANmJhNjEzYSIsInByZXZpZXdJbWciOiJodHRwczovL2ZpbGVzMi5oZXlnZW4uYWkvYXZhdGFyL3Yz%0D%0AL2JjMTNkZDE3NDg4YTQ0ZmZhNDZmMGNjYjI2YmE2MTNhL2Z1bGwvMi4yL3ByZXZpZXdfdGFyZ2V0%0D%0ALndlYnAiLCJuZWVkUmVtb3ZlQmFja2dyb3VuZCI6ZmFsc2UsImtub3dsZWRnZUJhc2VJZCI6ImRl%0D%0AbW8tMSIsInVzZXJuYW1lIjoiMmE3MTA3YzE4YjI5NDA0MThkMWUyNjZjMTAwNTMxYTYifQ%3D%3D&inIFrame=1",
-                clientWidth=document.body.clientWidth,
-                wrapDiv=document.createElement("div");
-                wrapDiv.id="heygen-streaming-embed";
-                
-                const container=document.createElement("div");
-                container.id="heygen-streaming-container";
-                
-                const stylesheet=document.createElement("style");
-                stylesheet.innerHTML=\`
-                  #heygen-streaming-embed {
-                    z-index: 9999;
-                    position: relative;
-                    left: 0;
-                    top: 0;
-                    width: 100%;
-                    height: 300px;
-                    border-radius: 10px;
-                    border: 2px solid #fff;
-                    box-shadow: 0px 8px 24px 0px rgba(0, 0, 0, 0.12);
-                    transition: all linear 0.1s;
-                    overflow: hidden;
-                    opacity: 1;
-                    visibility: visible;
-                  }
-                  #heygen-streaming-container {
-                    width: 100%;
-                    height: 100%;
-                  }
-                  #heygen-streaming-container iframe {
-                    width: 100%;
-                    height: 100%;
-                    border: 0;
-                  }
-                \`;
-                
-                const iframe=document.createElement("iframe");
-                iframe.allowFullscreen=false;
-                iframe.title="Streaming Embed";
-                iframe.role="dialog";
-                iframe.allow="microphone";
-                iframe.src=url;
-                
-                let visible=false,initial=false;
-                window.addEventListener("message",(e=>{
-                    if(e.origin===host&&e.data&&e.data.type&&"streaming-embed"===e.data.type){
-                        if("init"===e.data.action){
-                            initial=true;
-                            console.log('HeyGen iframe initialized');
-                        } else if("show"===e.data.action){
-                            visible=true;
-                            console.log('HeyGen iframe shown');
-                        } else if("hide"===e.data.action){
-                            visible=false;
-                            console.log('HeyGen iframe hidden');
-                        }
-                    }
-                }));
-                
-                container.appendChild(iframe);
-                wrapDiv.appendChild(stylesheet);
-                wrapDiv.appendChild(container);
-                
-                // 將 HeyGen iframe 嵌入到我們的容器中
-                const heygenContainer = document.querySelector('.heygen-container');
-                heygenContainer.innerHTML = '';
-                heygenContainer.appendChild(wrapDiv);
-                
-                console.log('HeyGen iframe 已載入');
-            }(globalThis);
+        container.innerHTML = `
+            <iframe 
+                id="heygen-iframe"
+                src="${iframeUrl}"
+                style="width: 100%; height: 100%; border: none;"
+                allow="camera; microphone"
+            ></iframe>
         `;
         
-        document.head.appendChild(script);
+        this.heygenIframe = document.getElementById('heygen-iframe');
+        console.log('載入 HeyGen iframe:', iframeUrl);
     }
+
 
     setupEventListeners() {
         // 麥克風按鈕事件
@@ -190,10 +127,53 @@ class AI3STTSDemo {
 
         // 監聽 HeyGen iframe 訊息
         window.addEventListener('message', (event) => {
-            if (event.data.type === 'iframe-ready') {
-                console.log('HeyGen iframe 準備完成:', event.data);
+            // 忽略非相關訊息
+            if (!event.data || !event.data.type) return;
+            
+            switch (event.data.type) {
+                case 'iframe-ready':
+                    console.log('HeyGen iframe 準備完成:', event.data);
+                    this.updateStatus('ready', '準備就緒');
+                    break;
+                    
+                case 'speak-started':
+                    console.log('開始播放語音:', event.data.text);
+                    this.updateStatus('processing', '播放中...');
+                    break;
+                    
+                case 'speak-completed':
+                    console.log('語音播放完成:', event.data.text);
+                    this.updateStatus('ready', '準備就緒');
+                    break;
+                    
+                case 'speak-error':
+                    console.error('語音播放錯誤:', event.data.error);
+                    this.updateStatus('error', '播放失敗');
+                    break;
             }
         });
+
+        // 文字輸入框事件
+        if (this.textInput) {
+            this.textInput.addEventListener('input', () => {
+                this.updateInputCounter(this.textInput.value.length);
+            });
+
+            // Enter 鍵發送（Shift+Enter 換行）
+            this.textInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendText();
+                }
+            });
+        }
+
+        // 發送按鈕事件
+        if (this.sendButton) {
+            this.sendButton.addEventListener('click', () => {
+                this.sendText();
+            });
+        }
     }
 
     async checkMicrophonePermission() {
@@ -350,21 +330,19 @@ class AI3STTSDemo {
             console.log('設置 STT 事件處理器...');
             this.sttSession.onRecognizing((result) => {
                 this.transcriptText.textContent = result.text + '...';
+                // 即時更新到文字輸入框
+                this.textInput.value = result.text;
                 this.updateInputCounter(result.text.length);
             });
 
             this.sttSession.onResult((result) => {
                 console.log('STT 結果:', result);
                 this.transcriptText.textContent = result.text;
+                // 將最終結果輸出到文字輸入框
+                this.textInput.value = result.text;
                 this.updateInputCounter(result.text.length);
                 
-                // 自動播放到 HeyGen
-                if (result.text.trim()) {
-                    this.speakText(result.text, {
-                        avatarId: this.avatarConfig.id,
-                        voiceId: this.avatarConfig.defaultVoiceId
-                    });
-                }
+                // 不再自動播放，等待用戶點擊發送
             });
 
             this.sttSession.onError((error) => {
@@ -491,10 +469,13 @@ class AI3STTSDemo {
                 console.log('HeyGen 播放成功:', result.messageId);
                 
                 // 向 iframe 發送播放訊息
-                this.heygenIframe.contentWindow.postMessage({
-                    type: 'speak',
-                    text: text
-                }, '*');
+                if (this.heygenIframe && this.heygenIframe.contentWindow) {
+                    this.heygenIframe.contentWindow.postMessage({
+                        type: 'speak',
+                        text: text
+                    }, '*');
+                    console.log('已向 iframe 發送文字:', text);
+                }
             } else {
                 console.error('HeyGen 播放失敗:', result.error);
             }
@@ -510,9 +491,47 @@ class AI3STTSDemo {
     }
 
     updateInputCounter(length) {
-        const counter = document.querySelector('.input-counter');
-        counter.textContent = `${length}/1000`;
+        if (this.inputCounter) {
+            this.inputCounter.textContent = `${length}/1000`;
+        }
     }
+
+    async sendText() {
+        const text = this.textInput.value.trim();
+        
+        if (!text) {
+            return;
+        }
+
+        try {
+            // 更新狀態
+            this.updateStatus('processing', '發送中...');
+            
+            // 禁用發送按鈕避免重複發送
+            this.sendButton.disabled = true;
+            
+            // 發送文字到 HeyGen
+            await this.speakText(text, {
+                avatarId: this.avatarConfig?.id || 'default-avatar',
+                voiceId: this.avatarConfig?.defaultVoiceId || 'default-voice'
+            });
+            
+            // 清空輸入框
+            this.textInput.value = '';
+            this.updateInputCounter(0);
+            
+            // 更新狀態
+            this.updateStatus('ready', '準備就緒');
+            
+        } catch (error) {
+            console.error('發送失敗:', error);
+            this.updateStatus('error', '發送失敗');
+        } finally {
+            // 重新啟用發送按鈕
+            this.sendButton.disabled = false;
+        }
+    }
+    
 
     // 重採樣到 16kHz
     resampleTo16kHz(input) {

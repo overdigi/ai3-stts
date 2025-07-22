@@ -142,16 +142,58 @@
             border-top: 1px solid #eee;
         }
 
-        .input-placeholder {
-            color: #999;
-            font-size: 14px;
-            margin-bottom: 5px;
+        .text-input {
+            width: 100%;
+            min-height: 60px;
+            max-height: 120px;
+            padding: 10px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .text-input:focus {
+            border-color: #4a90e2;
+        }
+
+        .input-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
         }
 
         .input-counter {
-            text-align: right;
             color: #999;
             font-size: 12px;
+        }
+
+        .send-button {
+            padding: 8px 16px;
+            background: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .send-button:hover {
+            background: #357abd;
+            transform: translateY(-1px);
+        }
+
+        .send-button:active {
+            transform: translateY(0);
         }
 
         .status-indicator {
@@ -297,8 +339,13 @@
 
         <!-- Input Area -->
         <div class="input-area">
-            <div class="input-placeholder">想要問什麼都可以？</div>
-            <div class="input-counter">0/1000</div>
+            <textarea id="text-input" class="text-input" placeholder="想要問什麼都可以？" maxlength="1000"></textarea>
+            <div class="input-footer">
+                <div class="input-counter" id="input-counter">0/1000</div>
+                <button class="send-button" id="send-button">
+                    發送 ➤
+                </button>
+            </div>
         </div>
     </div>
 
