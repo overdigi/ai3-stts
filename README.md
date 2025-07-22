@@ -31,7 +31,7 @@ AI3-STTS 是一個整合 Azure Speech-to-Text (STT) 和 HeyGen 虛擬人物的�
 ### 1. Clone 專案
 
 ```bash
-git clone https://github.com/your-org/ai3-stts.git
+git clone https://github.com/overdigi/ai3-stts.git
 cd ai3-stts
 ```
 
@@ -71,6 +71,10 @@ CORS_ORIGIN=http://localhost:8080,http://localhost:3000
 
 # API 認證
 API_KEY=your-api-key
+
+# HeyGen 角色配置（只需要一組）
+AVATAR_ID=avatarId
+VOICE_ID=voiceId
 ```
 
 ### 4. 建構 SDK
@@ -95,16 +99,130 @@ npm run start:prod
 
 ## 📖 使用方式
 
+### 整合 AI3 WebChat (STT → WebChat → HeyGen)
+
+如果您想要將 Demo 改為使用 AI3 WebChat 作為中間層，實現「語音輸入 → AI 對話 → 虛擬人物播放」的完整流程，可以按照以下步驟進行：
+
+#### 1. 取得 STT 語音識別結果
+
+現有的 AI3-STTS SDK 已經提供了語音識別功能，您可以這樣取得結果：
+
+```javascript
+// 在現有的 app.js 中，STT 結果處理
+this.sttSession.onResult((result) => {
+    console.log('STT 識別結果:', result.text);
+    
+    // 將識別的文字發送到您的 AI3 WebChat API
+    this.sendToWebChat(result.text);
+});
+```
+
+#### 2. 發送文字給 HeyGen 虛擬人物播放
+
+使用現有的 `speakText` 方法將 AI 回應發送給 HeyGen：
+
+```javascript
+async sendToHeyGen(aiResponseText) {
+    try {
+        // 使用現有的 speakText 方法
+        await this.speakText(aiResponseText, {
+            avatarId: this.avatarConfig?.id || 'default-avatar',
+            voiceId: this.avatarConfig?.defaultVoiceId || 'default-voice'
+        });
+        
+        console.log('HeyGen 播放成功:', aiResponseText);
+        
+    } catch (error) {
+        console.error('HeyGen 播放失敗:', error);
+    }
+}
+
+// 獲取對話 Session ID
+getSessionId() {
+    if (!this.conversationSessionId) {
+        this.conversationSessionId = `session-${Date.now()}`;
+    }
+    return this.conversationSessionId;
+}
+```
+
+#### 3. 修改現有的 app.js
+
+在現有的 `app.js` 檔案中修改 STT 結果處理：
+
+```javascript
+// 找到現有的 onResult 處理，大約在第 384 行
+this.sttSession.onResult(async (result) => {
+    console.log('STT 結果:', result);
+    this.transcriptText.textContent = result.text;
+    this.textInput.value = result.text;
+    
+    // 新增：發送到 WebChat 並讓 HeyGen 播放回應
+    await this.handleWebChatResponse(result.text);
+});
+
+// 在 AI3STTSDemo 類別中新增這個方法
+async handleWebChatResponse(userText) {
+    try {
+        this.updateStatus('processing', 'AI 正在思考...');
+        
+        // 調用您的 WebChat API
+        const aiResponse = await this.callWebChatAPI(userText);
+        
+        // 讓 HeyGen 播放 AI 回應
+        await this.speakText(aiResponse);
+        this.updateStatus('ready', '準備就緒');
+        
+    } catch (error) {
+        console.error('處理失敗:', error);
+        await this.speakText('抱歉，我現在無法回應。');
+        this.updateStatus('ready', '準備就緒');
+    }
+}
+```
+
+#### 4. 實作 WebChat API 調用
+
+根據您的 AI3 WebChat API 規格，實作 `callWebChatAPI` 方法：
+
+```javascript
+async callWebChatAPI(userText) {
+    // 請根據您的 AI3 WebChat API 規格修改此處
+    // 這只是一個範例
+    return "這是 AI 的回應：" + userText;
+}
+```
+
+#### 5. 完整流程
+
+整合完成後的流程：
+
+1. **用戶說話** → STT 語音識別
+2. **識別結果** → 調用 AI3 WebChat API
+3. **AI 回應** → HeyGen 虛擬人物播放
+
+只需要實作 `callWebChatAPI` 方法來調用您的 AI3 WebChat API 即可。
+
 ### SDK 使用
 
 #### 安裝
-```bash
-# NPM
-npm install @ai3/stts-sdk
 
-# 或使用 CDN
-<script src="https://unpkg.com/@ai3/stts-sdk/dist/ai3-stts.min.js"></script>
+**方法 1: 使用範例中的 SDK**
+```html
+<!-- 直接引用範例中的 SDK 檔案 -->
+<script src="example/ai3-stts.js"></script>
 ```
+
+**方法 2: 使用編譯後的 SDK**
+```html
+<!-- 使用最新編譯的 SDK (推薦) -->
+<script src="sdk/dist/ai3-stts.min.js"></script>
+
+<!-- 或使用未壓縮版本 (開發用) -->
+<script src="sdk/dist/ai3-stts.js"></script>
+```
+
+> **注意：** NPM 套件 `@ai3/stts-sdk` 尚未發布。目前請直接使用專案中的 SDK 檔案。
 
 #### 初始化
 ```javascript
