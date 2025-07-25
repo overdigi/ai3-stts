@@ -84,26 +84,6 @@
             font-weight: 500;
         }
 
-        .audio-status-indicator {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(5px);
-            z-index: 10;
-            pointer-events: none; /* 不攔截點擊事件 */
-        }
-
-        .audio-status-indicator span {
-            font-size: 18px;
-            line-height: 1;
-        }
 
         .status-ready { background: rgba(40, 167, 69, 0.9); color: white; }
         .status-processing { background: rgba(255, 193, 7, 0.9); color: black; }
@@ -297,9 +277,6 @@
                 <!-- HeyGen Avatar -->
                 <div class="heygen-container">
                     <iframe id="heygen-iframe" class="heygen-iframe"></iframe>
-                    <div id="audio-status-indicator" class="audio-status-indicator">
-                        <span id="audio-icon">🔇</span>
-                    </div>
                 </div>
 
                 <!-- 系統資訊 -->
@@ -316,10 +293,6 @@
                     <div class="info-item">
                         <span class="info-label">自動開始:</span>
                         <span class="info-value" id="auto-start-status">否</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">音效狀態:</span>
-                        <span class="info-value" id="audio-status">已靜音</span>
                     </div>
                 </div>
 
@@ -372,21 +345,6 @@
                     </div>
                     
                     
-                    <div class="control-group">
-                        <h3>音效控制</h3>
-                        <button class="test-btn test-btn-primary" onclick="testToggleAudio()">
-                            切換音效狀態
-                        </button>
-                        <button class="test-btn test-btn-success" onclick="testUnmuteAudio()">
-                            開啟音效
-                        </button>
-                        <button class="test-btn test-btn-danger" onclick="testMuteAudio()">
-                            關閉音效
-                        </button>
-                        <button class="test-btn test-btn-secondary" onclick="testCheckAudioStatus()">
-                            檢查音效狀態
-                        </button>
-                    </div>
 
                     <div class="control-group">
                         <h3>日誌控制</h3>
@@ -422,7 +380,6 @@
             TestUtils.log('📞 測試：開始對話');
             
             // 利用用戶點擊事件預先啟用音訊權限
-            enableAudioForIframe();
             
             if (typeof Avatar !== 'undefined' && Avatar.startConversation) {
                 TestUtils.log('🚀 呼叫 SDK 方法: Avatar.startConversation()');
@@ -576,86 +533,6 @@
             }
         }
 
-        // 音效控制測試函數
-        async function testToggleAudio() {
-            TestUtils.log('🔊 測試：切換音效狀態');
-            TestUtils.log('🚀 呼叫 SDK 方法: toggleAudioStatus()');
-            const result = await toggleAudioStatus();
-            if (result) {
-                TestUtils.log(`✅ 音效狀態已切換: ${result.isMuted ? '已靜音' : '已開啟'}`);
-            }
-        }
-
-        async function testUnmuteAudio() {
-            TestUtils.log('🔊 測試：開啟音效');
-            TestUtils.log('🚀 呼叫 SDK 方法: POST /heygen/audio/set');
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/heygen/audio/set`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ isMuted: false })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success && result.status) {
-                    currentAudioStatus = result.status;
-                    updateAudioStatusDisplay(result.status.isMuted);
-                    TestUtils.log(`✅ 音效已開啟`);
-                    
-                    // 啟用音訊權限
-                    enableAudioForIframe();
-                } else {
-                    TestUtils.log('❌ 開啟音效失敗:', result);
-                }
-            } catch (error) {
-                TestUtils.log('❌ 開啟音效失敗:', error.message);
-            }
-        }
-
-        async function testMuteAudio() {
-            TestUtils.log('🔇 測試：關閉音效');
-            TestUtils.log('🚀 呼叫 SDK 方法: POST /heygen/audio/set');
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/heygen/audio/set`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ isMuted: true })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success && result.status) {
-                    currentAudioStatus = result.status;
-                    updateAudioStatusDisplay(result.status.isMuted);
-                    TestUtils.log(`✅ 音效已關閉`);
-                } else {
-                    TestUtils.log('❌ 關閉音效失敗:', result);
-                }
-            } catch (error) {
-                TestUtils.log('❌ 關閉音效失敗:', error.message);
-            }
-        }
-
-        async function testCheckAudioStatus() {
-            TestUtils.log('📊 測試：檢查音效狀態');
-            TestUtils.log('🚀 呼叫 SDK 方法: GET /heygen/audio/status');
-            
-            const result = await fetchAudioStatus();
-            if (result) {
-                TestUtils.log('音效狀態詳情:', {
-                    isMuted: result.isMuted,
-                    sessionId: result.sessionId || '全域',
-                    lastUpdated: result.lastUpdated
-                });
-            }
-        }
 
         function exportLog() {
             TestUtils.log('💾 測試：匯出日誌');
@@ -690,11 +567,6 @@
             }
         }
 
-        // 音效狀態管理 - 現在透過後端 API
-        let currentAudioStatus = {
-            isMuted: true,
-            lastUpdated: new Date()
-        };
 
         // API 基礎 URL - 智能檢測
         const getApiBaseUrl = () => {
@@ -722,102 +594,16 @@
             apiBaseUrl: API_BASE_URL || '(相對路徑)'
         });
 
-        /**
-         * 從後端 API 獲取音效狀態
-         */
-        async function fetchAudioStatus() {
-            try {
-                const url = `${API_BASE_URL}/heygen/audio/status`;
-                
-                const response = await fetch(url);
-                const result = await response.json();
-                
-                if (result.success && result.status) {
-                    const wasCurrentlyMuted = currentAudioStatus.isMuted;
-                    currentAudioStatus = result.status;
-                    updateAudioStatusDisplay(result.status.isMuted);
-                    
-                    if (wasCurrentlyMuted !== result.status.isMuted) {
-                        TestUtils.log(`🔊 前端音效狀態變更: ${wasCurrentlyMuted ? '靜音' : '開啟'} → ${result.status.isMuted ? '靜音' : '開啟'}`);
-                    }
-                    
-                    return result.status;
-                }
-            } catch (error) {
-                TestUtils.log('❌ 獲取音效狀態失敗:', error.message);
-            }
-            return null;
-        }
 
         /**
          * 透過後端 API 切換音效狀態
          */
-        async function toggleAudioStatus() {
-            try {
-                TestUtils.log('🎬 透過 API 切換音效狀態');
-                TestUtils.log('🚀 呼叫 SDK 方法: POST /heygen/audio/toggle');
-                
-                const response = await fetch(`${API_BASE_URL}/heygen/audio/toggle`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({})
-                });
-                
-                const result = await response.json();
-                
-                if (result.success && result.status) {
-                    currentAudioStatus = result.status;
-                    updateAudioStatusDisplay(result.status.isMuted);
-                    TestUtils.log(`✅ 音效狀態已更新: ${result.status.isMuted ? '已靜音' : '已開啟'}`);
-                    
-                    // 如果是開啟音效，啟用音訊權限
-                    if (!result.status.isMuted) {
-                        enableAudioForIframe();
-                    }
-                    
-                    return result.status;
-                } else {
-                    TestUtils.log('❌ API 回應錯誤:', result);
-                }
-            } catch (error) {
-                TestUtils.log('❌ 切換音效狀態失敗:', error.message);
-            }
-            return null;
-        }
 
         /**
          * 更新音效狀態顯示
          */
-        function updateAudioStatusDisplay(isMuted) {
-            const audioIcon = document.getElementById('audio-icon');
-            const audioStatus = document.getElementById('audio-status');
-            
-            if (audioIcon) {
-                audioIcon.textContent = isMuted ? '🔇' : '🔊';
-            }
-            
-            if (audioStatus) {
-                audioStatus.textContent = isMuted ? '已靜音' : '已開啟';
-            }
-        }
 
         // iframe 點擊事件處理 - 改為呼叫 API
-        function setupIframeClickHandler() {
-            const iframe = document.getElementById('heygen-iframe');
-            const container = document.querySelector('.heygen-container');
-            
-            if (container) {
-                // 監聽容器的點擊事件
-                container.addEventListener('click', async function(event) {
-                    // 確保點擊的是 iframe 區域而不是狀態指示器
-                    if (event.target === iframe || event.target === container) {
-                        await toggleAudioStatus();
-                    }
-                });
-            }
-        }
 
         // 文字輸入處理
         document.addEventListener('DOMContentLoaded', function() {
@@ -852,16 +638,9 @@
             // 初始化系統資訊
             updateSystemInfo();
             
-            // 設置 iframe 點擊處理
-            setupIframeClickHandler();
-            
-            // 初始化音效狀態
-            fetchAudioStatus();
-            
-            // 定期更新系統資訊和音效狀態
+            // 定期更新系統資訊
             setInterval(() => {
                 updateSystemInfo();
-                fetchAudioStatus(); // 定期從後端獲取音效狀態
             }, 5000);
 
             // 初始化日誌
@@ -890,17 +669,6 @@
             if (event.data && event.data.type) {
                 TestUtils.log(`📨 收到 iframe 訊息: ${event.data.type}`, event.data);
                 
-                // 處理音效狀態變更（來自 iframe 的後端同步）
-                if (event.data.type === 'audioStatusChanged') {
-                    const isMuted = event.data.isMuted !== undefined ? event.data.isMuted : true;
-                    updateAudioStatusDisplay(isMuted);
-                    
-                    // 更新本地狀態記錄
-                    currentAudioStatus.isMuted = isMuted;
-                    currentAudioStatus.lastUpdated = new Date();
-                    
-                    TestUtils.log(`🔊 iframe 音效狀態同步: ${isMuted ? '已靜音' : '已開啟'} (來源: ${event.data.source || 'unknown'})`);
-                }
                 
                 // 特別處理錯誤訊息
                 if (event.data.type === 'error' || event.data.error) {

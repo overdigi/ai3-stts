@@ -13,23 +13,12 @@ export interface SpeakRequest {
   voiceId: string;
 }
 
-export interface AudioStatus {
-  isMuted: boolean;
-  sessionId?: string;
-  lastUpdated: Date;
-}
 
 @Injectable()
 export class HeygenService {
   private readonly baseUrl: string;
   private readonly apiKey: string;
 
-  // 音效狀態管理 - 記憶體儲存（生產環境建議使用資料庫）
-  private audioStatusMap: Map<string, AudioStatus> = new Map();
-  private globalAudioStatus: AudioStatus = {
-    isMuted: false, // 預設開啟音效（但瀏覽器政策可能強制靜音）
-    lastUpdated: new Date(),
-  };
 
   // 預設的角色配置 - 從環境變數讀取
   private readonly defaultAvatars: AvatarConfig[] = [
@@ -469,49 +458,49 @@ export class HeygenService {
                   videoEl.muted = false;
                   videoEl.volume = 1.0;
                   
-                  // 簡單的影片播放邏輯
-                  videoEl.onloadedmetadata = () => {
-                    console.log('Video metadata loaded, attempting to play');
+                  // 根據 Chrome 自動播放政策的最佳實踐
+                  videoEl.onloadedmetadata = async () => {
+                    console.log('Video metadata loaded');
                     
-                    // 嘗試播放，如果失敗則靜音播放
-                    videoEl.play().then(() => {
-                      console.log('Video playing successfully');
+                    // 先嘗試靜音播放（這應該總是成功的）
+                    videoEl.muted = true;
+                    
+                    try {
+                      await videoEl.play();
+                      console.log('✅ 靜音播放成功');
                       videoEl.style.display = 'block';
                       document.getElementById('avatar-placeholder').style.display = 'none';
                       isConnected = true;
-                    }).catch(err => {
-                      console.log('Autoplay blocked, playing muted:', err.name);
-                      videoEl.muted = true;
-                      videoEl.play().then(() => {
-                        console.log('Playing muted - 💡 點擊影片取消靜音');
-                        videoEl.style.display = 'block';
-                        document.getElementById('avatar-placeholder').style.display = 'none';
-                        isConnected = true;
-                        
-                        // 添加點擊事件讓用戶可以取消靜音
-                        videoEl.addEventListener('click', () => {
-                          if (videoEl.muted) {
-                            videoEl.muted = false;
-                            console.log('🔊 用戶點擊取消靜音');
-                          }
-                        });
-                        
-                        // 添加暫停事件監聽，自動重新播放
-                        videoEl.addEventListener('pause', () => {
-                          console.log('⚠️ 影片被暫停，嘗試重新播放');
-                          setTimeout(() => {
-                            if (videoEl.paused) {
-                              videoEl.play().catch(err => {
-                                console.log('自動重新播放失敗:', err.message);
-                                console.log('💡 提示：請直接點擊影片啟用音訊播放');
-                              });
-                            }
-                          }, 100);
-                        });
-                      }).catch(muteErr => {
-                        console.error('Even muted playback failed:', muteErr);
-                      });
-                    });
+                      
+                      // 添加視覺提示
+                      const muteIndicator = document.createElement('div');
+                      muteIndicator.id = 'mute-indicator';
+                      muteIndicator.innerHTML = '🔇 點擊啟用聲音';
+                      muteIndicator.style.cssText = 'position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer; z-index: 10;';
+                      videoEl.parentElement.style.position = 'relative';
+                      videoEl.parentElement.appendChild(muteIndicator);
+                      
+                      // 處理用戶點擊（包括影片和提示）
+                      const enableAudio = async () => {
+                        try {
+                          videoEl.muted = false;
+                          // 根據文章建議，在用戶互動後立即播放
+                          await videoEl.play();
+                          console.log('🔊 音訊已成功啟用');
+                          muteIndicator.remove();
+                        } catch (error) {
+                          console.log('啟用音訊失敗:', error.message);
+                          videoEl.muted = true; // 回退到靜音
+                        }
+                      };
+                      
+                      videoEl.addEventListener('click', enableAudio);
+                      muteIndicator.addEventListener('click', enableAudio);
+                      
+                    } catch (error) {
+                      console.error('連靜音播放都失敗:', error);
+                      // 如果連靜音都無法播放，可能是其他問題
+                    }
                   };
                 }
               };
@@ -661,10 +650,19 @@ export class HeygenService {
             // 簡化的 speak 處理
             if (event.data.type === 'speak' && isConnected && sessionId) {
               try {
-                // 用戶點擊時嘗試啟用音訊
+                // 利用用戶點擊事件嘗試啟用音訊
                 if (videoEl && videoEl.muted) {
-                  videoEl.muted = false;
-                  console.log('🔊 嘗試啟用音訊（用戶操作）');
+                  try {
+                    videoEl.muted = false;
+                    await videoEl.play(); // 在用戶手勢內重新播放
+                    console.log('🔊 利用用戶操作成功啟用音訊');
+                    // 移除靜音提示
+                    const muteIndicator = document.getElementById('mute-indicator');
+                    if (muteIndicator) muteIndicator.remove();
+                  } catch (error) {
+                    console.log('音訊啟用失敗，保持靜音:', error.message);
+                    videoEl.muted = true;
+                  }
                 }
                 
                 const response = await fetch(\`/heygen/streaming/session/\${sessionId}/speak\`, {
@@ -1540,101 +1538,7 @@ export class HeygenService {
     `;
   }
   
-  // === 音效狀態管理方法 ===
-  
-  /**
-   * 獲取全域音效狀態
-   */
-  getGlobalAudioStatus(): AudioStatus {
-    return { ...this.globalAudioStatus };
-  }
-
-  /**
-   * 獲取指定 session 的音效狀態
-   */
-  getSessionAudioStatus(sessionId: string): AudioStatus {
-    const status = this.audioStatusMap.get(sessionId);
-    if (!status) {
-      // 如果 session 沒有特定狀態，返回全域狀態
-      return { ...this.globalAudioStatus, sessionId };
-    }
-    return { ...status };
-  }
-
-  /**
-   * 設置全域音效狀態
-   */
-  setGlobalAudioStatus(isMuted: boolean): AudioStatus {
-    this.globalAudioStatus = {
-      isMuted,
-      lastUpdated: new Date(),
-    };
-    
-    console.log(`🔊 全域音效狀態已更新: ${isMuted ? '靜音' : '開啟'}`);
-    return { ...this.globalAudioStatus };
-  }
-
-  /**
-   * 設置指定 session 的音效狀態
-   */
-  setSessionAudioStatus(sessionId: string, isMuted: boolean): AudioStatus {
-    const status: AudioStatus = {
-      isMuted,
-      sessionId,
-      lastUpdated: new Date(),
-    };
-    
-    this.audioStatusMap.set(sessionId, status);
-    console.log(`🔊 Session ${sessionId} 音效狀態已更新: ${isMuted ? '靜音' : '開啟'}`);
-    return { ...status };
-  }
-
-  /**
-   * 切換全域音效狀態
-   */
-  toggleGlobalAudioStatus(): AudioStatus {
-    const newMutedState = !this.globalAudioStatus.isMuted;
-    return this.setGlobalAudioStatus(newMutedState);
-  }
-
-  /**
-   * 切換指定 session 的音效狀態
-   */
-  toggleSessionAudioStatus(sessionId: string): AudioStatus {
-    const currentStatus = this.getSessionAudioStatus(sessionId);
-    const newMutedState = !currentStatus.isMuted;
-    return this.setSessionAudioStatus(sessionId, newMutedState);
-  }
-
-  /**
-   * 清除指定 session 的音效狀態（恢復使用全域狀態）
-   */
-  clearSessionAudioStatus(sessionId: string): boolean {
-    const existed = this.audioStatusMap.has(sessionId);
-    this.audioStatusMap.delete(sessionId);
-    
-    if (existed) {
-      console.log(`🔊 已清除 Session ${sessionId} 的音效狀態`);
-    }
-    
-    return existed;
-  }
-
-  /**
-   * 獲取所有 session 的音效狀態
-   */
-  getAllAudioStatus(): { global: AudioStatus; sessions: { [sessionId: string]: AudioStatus } } {
-    const sessions: { [sessionId: string]: AudioStatus } = {};
-    
-    for (const [sessionId, status] of this.audioStatusMap.entries()) {
-      sessions[sessionId] = { ...status };
-    }
-    
-    return {
-      global: { ...this.globalAudioStatus },
-      sessions,
-    };
-  }
+  // 音效狀態管理已移除
 
   // 已移除 generateStreamingIframeHtmlWithSDK - 現在使用後端 SDK
   /* async generateStreamingIframeHtmlWithSDK_deprecated(avatarId: string): Promise<string> {
