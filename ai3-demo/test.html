@@ -84,6 +84,27 @@
             font-weight: 500;
         }
 
+        .audio-status-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+            z-index: 10;
+            pointer-events: none; /* 不攔截點擊事件 */
+        }
+
+        .audio-status-indicator span {
+            font-size: 18px;
+            line-height: 1;
+        }
+
         .status-ready { background: rgba(40, 167, 69, 0.9); color: white; }
         .status-processing { background: rgba(255, 193, 7, 0.9); color: black; }
         .status-error { background: rgba(220, 53, 69, 0.9); color: white; }
@@ -276,6 +297,9 @@
                 <!-- HeyGen Avatar -->
                 <div class="heygen-container">
                     <iframe id="heygen-iframe" class="heygen-iframe"></iframe>
+                    <div id="audio-status-indicator" class="audio-status-indicator">
+                        <span id="audio-icon">🔇</span>
+                    </div>
                 </div>
 
                 <!-- 系統資訊 -->
@@ -292,6 +316,10 @@
                     <div class="info-item">
                         <span class="info-label">自動開始:</span>
                         <span class="info-value" id="auto-start-status">否</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">音效狀態:</span>
+                        <span class="info-value" id="audio-status">已靜音</span>
                     </div>
                 </div>
 
@@ -327,7 +355,39 @@
                         </button>
                     </div>
                     
+                    <div class="control-group">
+                        <h3>STT 語音識別測試</h3>
+                        <button class="test-btn test-btn-success" onclick="testStartSTT()">
+                            開始錄音
+                        </button>
+                        <button class="test-btn test-btn-danger" onclick="testStopSTT()">
+                            停止錄音
+                        </button>
+                        <button class="test-btn test-btn-secondary" onclick="testSTTStatus()">
+                            檢查 STT 狀態
+                        </button>
+                        <button class="test-btn test-btn-primary" onclick="testSTTConnection()">
+                            測試 STT 連接
+                        </button>
+                    </div>
                     
+                    
+                    <div class="control-group">
+                        <h3>音效控制</h3>
+                        <button class="test-btn test-btn-primary" onclick="testToggleAudio()">
+                            切換音效狀態
+                        </button>
+                        <button class="test-btn test-btn-success" onclick="testUnmuteAudio()">
+                            開啟音效
+                        </button>
+                        <button class="test-btn test-btn-danger" onclick="testMuteAudio()">
+                            關閉音效
+                        </button>
+                        <button class="test-btn test-btn-secondary" onclick="testCheckAudioStatus()">
+                            檢查音效狀態
+                        </button>
+                    </div>
+
                     <div class="control-group">
                         <h3>日誌控制</h3>
                         <button class="test-btn test-btn-secondary" onclick="TestUtils.clearLog()">
@@ -360,19 +420,108 @@
         // 測試函數
         function testStartConversation() {
             TestUtils.log('📞 測試：開始對話');
+            
+            // 利用用戶點擊事件預先啟用音訊權限
+            enableAudioForIframe();
+            
             if (typeof Avatar !== 'undefined' && Avatar.startConversation) {
+                TestUtils.log('🚀 呼叫 SDK 方法: Avatar.startConversation()');
                 Avatar.startConversation();
             } else {
                 TestUtils.log('❌ Avatar.startConversation 方法未找到');
             }
         }
 
+        // 預先啟用音訊權限的函數
+        function enableAudioForIframe() {
+            try {
+                // 創建一個很短的無聲音訊來啟用音訊上下文
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                gainNode.gain.value = 0; // 無聲
+                oscillator.frequency.value = 440;
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.01);
+                
+                TestUtils.log('🔊 已預先啟用音訊權限');
+                
+                // 發送音訊已啟用的消息給 iframe
+                const iframe = document.getElementById('heygen-iframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({
+                        type: 'audioEnabled'
+                    }, '*');
+                }
+            } catch (error) {
+                TestUtils.log('⚠️ 音訊權限啟用失敗:', error.message);
+            }
+        }
+
         function testStopConversation() {
             TestUtils.log('📞 測試：結束對話');
             if (typeof Avatar !== 'undefined' && Avatar.stopConversation) {
+                TestUtils.log('🚀 呼叫 SDK 方法: Avatar.stopConversation()');
                 Avatar.stopConversation();
             } else {
                 TestUtils.log('❌ Avatar.stopConversation 方法未找到');
+            }
+        }
+
+        // STT 測試函數
+        function testStartSTT() {
+            TestUtils.log('🎤 測試：開始 STT 錄音');
+            if (typeof Avatar !== 'undefined' && Avatar.startRecording) {
+                TestUtils.log('📋 檢查 STT 依賴:');
+                TestUtils.log(`- Socket.io: ${typeof io !== 'undefined' ? '✅' : '❌'}`);
+                TestUtils.log(`- Avatar.isInitialized: ${Avatar.isInitialized || false}`);
+                TestUtils.log(`- Avatar.isRecording: ${Avatar.isRecording || false}`);
+                
+                TestUtils.log('🚀 呼叫 SDK 方法: Avatar.startRecording()');
+                Avatar.startRecording();
+            } else {
+                TestUtils.log('❌ Avatar.startRecording 方法未找到');
+            }
+        }
+
+        function testStopSTT() {
+            TestUtils.log('🛑 測試：停止 STT 錄音');
+            if (typeof Avatar !== 'undefined' && Avatar.stopRecording) {
+                TestUtils.log('🚀 呼叫 SDK 方法: Avatar.stopRecording()');
+                Avatar.stopRecording();
+            } else {
+                TestUtils.log('❌ Avatar.stopRecording 方法未找到');
+            }
+        }
+
+        function testSTTStatus() {
+            TestUtils.log('📊 測試：檢查 STT 狀態');
+            TestUtils.log('🚀 呼叫 SDK 屬性: Avatar 狀態檢查');
+            if (typeof Avatar !== 'undefined') {
+                TestUtils.log('Avatar 狀態:', {
+                    isInitialized: Avatar.isInitialized || false,
+                    isRecording: Avatar.isRecording || false,
+                    sttEnabled: Avatar.sttEnabled || false,
+                    client: Avatar.client ? '已連接' : '未連接'
+                });
+                
+                // 檢查 Socket.io 全域變數
+                TestUtils.log('Socket.io 全域檢查:', {
+                    io_defined: typeof io !== 'undefined',
+                    io_version: typeof io !== 'undefined' ? io.version : 'N/A'
+                });
+                
+                // 檢查 AI3STTS SDK
+                if (typeof AI3STTS !== 'undefined') {
+                    TestUtils.log('AI3STTS SDK 狀態: 已載入');
+                } else {
+                    TestUtils.log('❌ AI3STTS SDK 未載入');
+                }
+            } else {
+                TestUtils.log('❌ Avatar 對象未找到');
             }
         }
 
@@ -392,7 +541,124 @@
             }
         }
 
+        // 新增 STT 連接測試
+        async function testSTTConnection() {
+            TestUtils.log('🔗 測試：STT 連接');
+            TestUtils.log('🚀 呼叫 SDK 方法: io() 連接測試');
+            try {
+                // 嘗試建立 Socket.io 連接
+                if (typeof io === 'undefined') {
+                    throw new Error('Socket.io 未載入');
+                }
+                
+                TestUtils.log('嘗試建立 Socket.io 連接到 localhost:3000...');
+                const socket = io('http://localhost:3000');
+                
+                socket.on('connect', () => {
+                    TestUtils.log('✅ Socket.io 連接成功');
+                    socket.disconnect();
+                });
+                
+                socket.on('connect_error', (error) => {
+                    TestUtils.log('❌ Socket.io 連接失敗:', error.message);
+                });
+                
+                // 超時檢查
+                setTimeout(() => {
+                    if (!socket.connected) {
+                        TestUtils.log('⚠️ Socket.io 連接超時');
+                        socket.disconnect();
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                TestUtils.log('❌ STT 連接測試失敗:', error.message);
+            }
+        }
+
+        // 音效控制測試函數
+        async function testToggleAudio() {
+            TestUtils.log('🔊 測試：切換音效狀態');
+            TestUtils.log('🚀 呼叫 SDK 方法: toggleAudioStatus()');
+            const result = await toggleAudioStatus();
+            if (result) {
+                TestUtils.log(`✅ 音效狀態已切換: ${result.isMuted ? '已靜音' : '已開啟'}`);
+            }
+        }
+
+        async function testUnmuteAudio() {
+            TestUtils.log('🔊 測試：開啟音效');
+            TestUtils.log('🚀 呼叫 SDK 方法: POST /heygen/audio/set');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/heygen/audio/set`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ isMuted: false })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.status) {
+                    currentAudioStatus = result.status;
+                    updateAudioStatusDisplay(result.status.isMuted);
+                    TestUtils.log(`✅ 音效已開啟`);
+                    
+                    // 啟用音訊權限
+                    enableAudioForIframe();
+                } else {
+                    TestUtils.log('❌ 開啟音效失敗:', result);
+                }
+            } catch (error) {
+                TestUtils.log('❌ 開啟音效失敗:', error.message);
+            }
+        }
+
+        async function testMuteAudio() {
+            TestUtils.log('🔇 測試：關閉音效');
+            TestUtils.log('🚀 呼叫 SDK 方法: POST /heygen/audio/set');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/heygen/audio/set`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ isMuted: true })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.status) {
+                    currentAudioStatus = result.status;
+                    updateAudioStatusDisplay(result.status.isMuted);
+                    TestUtils.log(`✅ 音效已關閉`);
+                } else {
+                    TestUtils.log('❌ 關閉音效失敗:', result);
+                }
+            } catch (error) {
+                TestUtils.log('❌ 關閉音效失敗:', error.message);
+            }
+        }
+
+        async function testCheckAudioStatus() {
+            TestUtils.log('📊 測試：檢查音效狀態');
+            TestUtils.log('🚀 呼叫 SDK 方法: GET /heygen/audio/status');
+            
+            const result = await fetchAudioStatus();
+            if (result) {
+                TestUtils.log('音效狀態詳情:', {
+                    isMuted: result.isMuted,
+                    sessionId: result.sessionId || '全域',
+                    lastUpdated: result.lastUpdated
+                });
+            }
+        }
+
         function exportLog() {
+            TestUtils.log('💾 測試：匯出日誌');
             const logContainer = document.getElementById('test-log');
             const logText = logContainer.textContent;
             const blob = new Blob([logText], { type: 'text/plain' });
@@ -424,6 +690,135 @@
             }
         }
 
+        // 音效狀態管理 - 現在透過後端 API
+        let currentAudioStatus = {
+            isMuted: true,
+            lastUpdated: new Date()
+        };
+
+        // API 基礎 URL - 智能檢測
+        const getApiBaseUrl = () => {
+            // 如果在同一個端口（3000），使用相對路徑
+            if (window.location.port === '3000') {
+                return '';
+            }
+            
+            // 如果是開發環境，回退到 localhost:3000
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return 'http://localhost:3000';
+            }
+            
+            // 生產環境：使用同一個域名但端口 3000
+            return `${window.location.protocol}//${window.location.hostname}:3000`;
+        };
+        
+        const API_BASE_URL = getApiBaseUrl();
+        
+        // 記錄 API 配置到日誌
+        console.log('🔧 API 配置檢測:', {
+            currentUrl: window.location.href,
+            currentPort: window.location.port,
+            hostname: window.location.hostname,
+            apiBaseUrl: API_BASE_URL || '(相對路徑)'
+        });
+
+        /**
+         * 從後端 API 獲取音效狀態
+         */
+        async function fetchAudioStatus() {
+            try {
+                const url = `${API_BASE_URL}/heygen/audio/status`;
+                
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.success && result.status) {
+                    const wasCurrentlyMuted = currentAudioStatus.isMuted;
+                    currentAudioStatus = result.status;
+                    updateAudioStatusDisplay(result.status.isMuted);
+                    
+                    if (wasCurrentlyMuted !== result.status.isMuted) {
+                        TestUtils.log(`🔊 前端音效狀態變更: ${wasCurrentlyMuted ? '靜音' : '開啟'} → ${result.status.isMuted ? '靜音' : '開啟'}`);
+                    }
+                    
+                    return result.status;
+                }
+            } catch (error) {
+                TestUtils.log('❌ 獲取音效狀態失敗:', error.message);
+            }
+            return null;
+        }
+
+        /**
+         * 透過後端 API 切換音效狀態
+         */
+        async function toggleAudioStatus() {
+            try {
+                TestUtils.log('🎬 透過 API 切換音效狀態');
+                TestUtils.log('🚀 呼叫 SDK 方法: POST /heygen/audio/toggle');
+                
+                const response = await fetch(`${API_BASE_URL}/heygen/audio/toggle`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.status) {
+                    currentAudioStatus = result.status;
+                    updateAudioStatusDisplay(result.status.isMuted);
+                    TestUtils.log(`✅ 音效狀態已更新: ${result.status.isMuted ? '已靜音' : '已開啟'}`);
+                    
+                    // 如果是開啟音效，啟用音訊權限
+                    if (!result.status.isMuted) {
+                        enableAudioForIframe();
+                    }
+                    
+                    return result.status;
+                } else {
+                    TestUtils.log('❌ API 回應錯誤:', result);
+                }
+            } catch (error) {
+                TestUtils.log('❌ 切換音效狀態失敗:', error.message);
+            }
+            return null;
+        }
+
+        /**
+         * 更新音效狀態顯示
+         */
+        function updateAudioStatusDisplay(isMuted) {
+            const audioIcon = document.getElementById('audio-icon');
+            const audioStatus = document.getElementById('audio-status');
+            
+            if (audioIcon) {
+                audioIcon.textContent = isMuted ? '🔇' : '🔊';
+            }
+            
+            if (audioStatus) {
+                audioStatus.textContent = isMuted ? '已靜音' : '已開啟';
+            }
+        }
+
+        // iframe 點擊事件處理 - 改為呼叫 API
+        function setupIframeClickHandler() {
+            const iframe = document.getElementById('heygen-iframe');
+            const container = document.querySelector('.heygen-container');
+            
+            if (container) {
+                // 監聽容器的點擊事件
+                container.addEventListener('click', async function(event) {
+                    // 確保點擊的是 iframe 區域而不是狀態指示器
+                    if (event.target === iframe || event.target === container) {
+                        await toggleAudioStatus();
+                    }
+                });
+            }
+        }
+
         // 文字輸入處理
         document.addEventListener('DOMContentLoaded', function() {
             const textInput = document.getElementById('text-input');
@@ -438,11 +833,12 @@
             }
 
             if (sendButton && textInput) {
-                sendButton.addEventListener('click', function() {
+                sendButton.addEventListener('click', function sendButtonClick() {
                     const text = textInput.value.trim();
                     if (text) {
                         TestUtils.log('🎤 播放文字:', text);
                         if (typeof Avatar !== 'undefined' && Avatar.speak) {
+                            TestUtils.log('🚀 呼叫 SDK 方法: Avatar.speak()');
                             Avatar.speak(text);
                             textInput.value = '';
                             inputCounter.textContent = '0/1000';
@@ -456,23 +852,55 @@
             // 初始化系統資訊
             updateSystemInfo();
             
-            // 減少更新頻率，避免重複日誌
-            setInterval(updateSystemInfo, 5000);
+            // 設置 iframe 點擊處理
+            setupIframeClickHandler();
+            
+            // 初始化音效狀態
+            fetchAudioStatus();
+            
+            // 定期更新系統資訊和音效狀態
+            setInterval(() => {
+                updateSystemInfo();
+                fetchAudioStatus(); // 定期從後端獲取音效狀態
+            }, 5000);
 
             // 初始化日誌
             TestUtils.log('🚀 AI3-STTS Avatar 測試頁面已載入');
             TestUtils.log('📋 依賴檢查:');
-            TestUtils.log(`- Socket.io: ${typeof io !== 'undefined' ? '✅' : '❌'}`);
+            TestUtils.log(`- Socket.io: ${typeof io !== 'undefined' ? '✅ v' + (io?.version || 'unknown') : '❌'}`);
             TestUtils.log(`- AI3STTS: ${typeof AI3STTS !== 'undefined' ? '✅' : '❌'}`);
             TestUtils.log(`- Avatar: ${typeof Avatar !== 'undefined' ? '✅' : '❌'}`);
             TestUtils.log(`- Util: ${typeof Util !== 'undefined' ? '✅' : '❌'}`);
             TestUtils.log(`- WebChat: ${typeof WebChat !== 'undefined' ? '✅' : '❌'}`);
+            
+            // 額外的 Socket.io 診斷
+            if (typeof io !== 'undefined') {
+                TestUtils.log('🔍 Socket.io 詳細檢查:');
+                TestUtils.log(`- 版本: ${io.version || 'unknown'}`);
+                TestUtils.log(`- 型別: ${typeof io}`);
+                TestUtils.log(`- io.connect 函數: ${typeof io.connect !== 'undefined' ? '✅' : '❌'}`);
+                TestUtils.log(`- io() 函數: ${typeof io === 'function' ? '✅' : '❌'}`);
+            } else {
+                TestUtils.log('❌ Socket.io 完全未載入 - 檢查 CDN 連接');
+            }
         });
 
         // Avatar 初始化完成監聽
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type) {
                 TestUtils.log(`📨 收到 iframe 訊息: ${event.data.type}`, event.data);
+                
+                // 處理音效狀態變更（來自 iframe 的後端同步）
+                if (event.data.type === 'audioStatusChanged') {
+                    const isMuted = event.data.isMuted !== undefined ? event.data.isMuted : true;
+                    updateAudioStatusDisplay(isMuted);
+                    
+                    // 更新本地狀態記錄
+                    currentAudioStatus.isMuted = isMuted;
+                    currentAudioStatus.lastUpdated = new Date();
+                    
+                    TestUtils.log(`🔊 iframe 音效狀態同步: ${isMuted ? '已靜音' : '已開啟'} (來源: ${event.data.source || 'unknown'})`);
+                }
                 
                 // 特別處理錯誤訊息
                 if (event.data.type === 'error' || event.data.error) {

@@ -237,7 +237,9 @@ var Avatar = {
         
         // 設置初始狀態
         if (this.transcriptText) {
-            this.transcriptText.textContent = '點擊麥克風開始語音輸入，或使用文字輸入...';
+            if (this.transcriptText) {
+                this.transcriptText.textContent = '點擊麥克風開始語音輸入，或使用文字輸入...';
+            }
         }
     },
 
@@ -380,8 +382,13 @@ var Avatar = {
     },
 
     async startRecording() {
-        console.log('=== startRecording 函數開始執行 ===');
-        console.log('目前 isRecording 狀態:', this.isRecording);
+        console.log('[Avatar.startRecording] === startRecording 函數開始執行 ===');
+        console.log('[Avatar.startRecording] 目前 isRecording 狀態:', this.isRecording);
+        
+        // 使用專門的函數調用日誌
+        if (typeof TestUtils !== 'undefined' && TestUtils.logFunctionCall) {
+            TestUtils.logFunctionCall('Avatar.startRecording', '開始 STT 錄音');
+        }
         
         // 防止重複錄音
         if (this.isRecording) {
@@ -472,13 +479,14 @@ var Avatar = {
             this.resampleRatio = this.audioContext.sampleRate / 16000;
             console.log('重採樣比率:', this.resampleRatio);
             
+            const self = this; // 保存 this 上下文
             this.processor.onaudioprocess = (e) => {
-                if (this.sttSession && this.isRecording) {
+                if (self.sttSession && self.isRecording) {
                     const inputData = e.inputBuffer.getChannelData(0);
-                    // 如果需要重採樣到 16kHz
-                    const resampledData = this.resampleTo16kHz(inputData);
-                    const pcmData = this.convertToPCM16(resampledData);
-                    this.sttSession.sendAudio(pcmData);
+                    // 重採樣到 16kHz
+                    const resampledData = self.resampleTo16kHz(inputData);
+                    const pcmData = self.convertToPCM16(resampledData);
+                    self.sttSession.sendAudio(pcmData);
                 }
             };
             
@@ -510,7 +518,9 @@ var Avatar = {
             // 設置 STT 事件處理器
             console.log('設置 STT 事件處理器...');
             this.sttSession.onRecognizing((result) => {
-                this.transcriptText.textContent = result.text + '...';
+                if (this.transcriptText) {
+                    this.transcriptText.textContent = result.text + '...';
+                }
                 // 即時更新到文字輸入框
                 this.textInput.value = result.text;
                 this.updateInputCounter(result.text.length);
@@ -518,7 +528,9 @@ var Avatar = {
 
             this.sttSession.onResult((result) => {
                 console.log('STT 結果:', result);
-                this.transcriptText.textContent = result.text;
+                if (this.transcriptText) {
+                    this.transcriptText.textContent = result.text;
+                }
                 // 將最終結果輸出到文字輸入框
                 this.textInput.value = result.text;
                 this.updateInputCounter(result.text.length);
@@ -535,10 +547,14 @@ var Avatar = {
             // 開始錄音
             this.isRecording = true;
             
-            // 更新UI
-            this.micButton.textContent = '🛑';
-            this.micButton.classList.add('recording');
-            this.transcriptText.textContent = '正在聽取您的語音...';
+            // 更新UI (僅在元素存在時)
+            if (this.micButton) {
+                this.micButton.textContent = '🛑';
+                this.micButton.classList.add('recording');
+            }
+            if (this.transcriptText) {
+                this.transcriptText.textContent = '正在聽取您的語音...';
+            }
             
             console.log('錄音啟動完成！isRecording:', this.isRecording);
 
@@ -547,8 +563,10 @@ var Avatar = {
             
             // 重要：發生錯誤時重置錄音狀態
             this.isRecording = false;
-            this.micButton.textContent = '🎤';
-            this.micButton.classList.remove('recording');
+            if (this.micButton) {
+                this.micButton.textContent = '🎤';
+                this.micButton.classList.remove('recording');
+            }
             
             // 釋放媒體流
             if (this.mediaStream) {
@@ -561,19 +579,26 @@ var Avatar = {
                 this.showPermissionModal();
             } else if (error.name === 'NotFoundError') {
                 this.updateStatus('error', '未找到麥克風設備');
-                this.transcriptText.textContent = '請確保您的電腦有麥克風設備，或嘗試重新整理頁面';
+                if (this.transcriptText) {
+                    this.transcriptText.textContent = '請確保您的電腦有麥克風設備，或嘗試重新整理頁面';
+                }
             } else if (error.message.includes('麥克風')) {
                 this.updateStatus('error', error.message);
-                this.transcriptText.textContent = error.message;
+                if (this.transcriptText) {
+                    this.transcriptText.textContent = error.message;
+                }
             } else {
                 this.updateStatus('error', '無法開始錄音');
-                this.transcriptText.textContent = '錄音功能暫時無法使用，請檢查麥克風設備';
+                if (this.transcriptText) {
+                    this.transcriptText.textContent = '錄音功能暫時無法使用，請檢查麥克風設備';
+                }
             }
         }
     },
 
     async stopRecording() {
         try {
+            console.log('[Avatar.stopRecording] 停止錄音函數開始執行');
             this.updateStatus('processing', '處理中...');
 
             this.isRecording = false;
@@ -609,9 +634,11 @@ var Avatar = {
                 this.sttSession = null;
             }
 
-            // 更新UI
-            this.micButton.textContent = '🎤';
-            this.micButton.classList.remove('recording');
+            // 更新UI (僅在元素存在時)
+            if (this.micButton) {
+                this.micButton.textContent = '🎤';
+                this.micButton.classList.remove('recording');
+            }
             
             this.updateStatus('ready', '準備就緒');
 
@@ -620,8 +647,10 @@ var Avatar = {
             
             // 確保狀態正確重置
             this.isRecording = false;
-            this.micButton.textContent = '🎤';
-            this.micButton.classList.remove('recording');
+            if (this.micButton) {
+                this.micButton.textContent = '🎤';
+                this.micButton.classList.remove('recording');
+            }
             
             // 釋放媒體流
             if (this.mediaStream) {
@@ -655,10 +684,15 @@ var Avatar = {
 
     speak: async function (text) {
         try {
-            console.log('正在播放文字:', text);
+            console.log('[Avatar.speak] 正在播放文字:', text);
+            
+            // 使用專門的函數調用日誌
+            if (typeof TestUtils !== 'undefined' && TestUtils.logFunctionCall) {
+                TestUtils.logFunctionCall('Avatar.speak', `正在播放文字: "${text}"`);
+            }
             
             if (!this.isInitialized || !this.client || !this.avatarId) {
-                console.error('❌ Avatar 系統未初始化');
+                console.error('[Avatar.speak] ❌ Avatar 系統未初始化');
                 this.updateStatus('error', '系統未準備好');
                 return;
             }
@@ -758,7 +792,9 @@ var Avatar = {
         this.enableSTT = true;
         
         if (this.transcriptText) {
-            this.transcriptText.textContent = '點擊麥克風開始語音輸入，或使用文字輸入...';
+            if (this.transcriptText) {
+                this.transcriptText.textContent = '點擊麥克風開始語音輸入，或使用文字輸入...';
+            }
         }
         
         this.updateStatus('ready', '準備就緒');
@@ -792,11 +828,20 @@ var Avatar = {
         }
         
         if (this.heygenIframe && this.heygenIframe.contentWindow) {
+            // 先發送音訊啟用消息
             this.heygenIframe.contentWindow.postMessage({
-                type: 'startConversation'
+                type: 'audioEnabled'
             }, '*');
-            this.updateStatus('processing', '正在開始對話...');
-            console.log('已發送開始對話指令到 iframe');
+            console.log('🔊 已發送音訊啟用指令到 iframe');
+            
+            // 延遲一點再發送開始對話消息
+            setTimeout(() => {
+                this.heygenIframe.contentWindow.postMessage({
+                    type: 'startConversation'
+                }, '*');
+                this.updateStatus('processing', '正在開始對話...');
+                console.log('已發送開始對話指令到 iframe');
+            }, 100);
         } else {
             console.error('❌ HeyGen iframe 未找到');
             this.updateStatus('error', 'iframe 未載入');
@@ -834,6 +879,47 @@ var Avatar = {
         // 重置狀態
         this.isInitialized = false;
         this.updateStatus('ready', '已斷開連接');
+    },
+
+    // 音訊處理方法
+    resampleTo16kHz: function(inputData) {
+        try {
+            const inputSampleRate = this.audioContext.sampleRate;
+            const outputSampleRate = 16000;
+            
+            if (inputSampleRate === outputSampleRate) {
+                return inputData;
+            }
+            
+            const ratio = inputSampleRate / outputSampleRate;
+            const outputLength = Math.floor(inputData.length / ratio);
+            const output = new Float32Array(outputLength);
+            
+            for (let i = 0; i < outputLength; i++) {
+                const sourceIndex = Math.floor(i * ratio);
+                output[i] = inputData[sourceIndex];
+            }
+            
+            return output;
+        } catch (error) {
+            console.error('重採樣錯誤:', error);
+            return inputData; // 返回原始數據作為備用
+        }
+    },
+
+    convertToPCM16: function(floatData) {
+        try {
+            const pcm16 = new Int16Array(floatData.length);
+            for (let i = 0; i < floatData.length; i++) {
+                // 將 float32 (-1 到 1) 轉換為 int16 (-32768 到 32767)
+                const sample = Math.max(-1, Math.min(1, floatData[i]));
+                pcm16[i] = sample < 0 ? sample * 32768 : sample * 32767;
+            }
+            return pcm16;
+        } catch (error) {
+            console.error('PCM16 轉換錯誤:', error);
+            return new Int16Array(0); // 返回空數組作為備用
+        }
     }
 };
 

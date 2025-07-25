@@ -1,6 +1,6 @@
-import { Controller, Post, Get, Body, Param, Headers, BadRequestException, Res } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Headers, BadRequestException, Res, Query } from '@nestjs/common';
 import { Response } from 'express';
-import { HeygenService, SpeakRequest } from './heygen.service';
+import { HeygenService, SpeakRequest, AudioStatus } from './heygen.service';
 
 @Controller('heygen')
 export class HeygenController {
@@ -133,6 +133,76 @@ export class HeygenController {
       return token;
     } catch (error) {
       throw new BadRequestException('Failed to get access token');
+    }
+  }
+
+  // === 音效控制 API 端點 ===
+  
+  @Get('audio/status')
+  getAudioStatus(@Query('sessionId') sessionId?: string): { success: boolean; status: AudioStatus } {
+    try {
+      const status = sessionId 
+        ? this.heygenService.getSessionAudioStatus(sessionId)
+        : this.heygenService.getGlobalAudioStatus();
+      
+      return { success: true, status };
+    } catch (error) {
+      throw new BadRequestException(`Failed to get audio status: ${error.message}`);
+    }
+  }
+
+  @Post('audio/toggle')
+  toggleAudioStatus(@Body() body: { sessionId?: string }): { success: boolean; status: AudioStatus } {
+    try {
+      const status = body.sessionId 
+        ? this.heygenService.toggleSessionAudioStatus(body.sessionId)
+        : this.heygenService.toggleGlobalAudioStatus();
+      
+      return { success: true, status };
+    } catch (error) {
+      throw new BadRequestException(`Failed to toggle audio status: ${error.message}`);
+    }
+  }
+
+  @Post('audio/set')
+  setAudioStatus(
+    @Body() body: { isMuted: boolean; sessionId?: string }
+  ): { success: boolean; status: AudioStatus } {
+    try {
+      if (typeof body.isMuted !== 'boolean') {
+        throw new BadRequestException('isMuted must be a boolean');
+      }
+
+      const status = body.sessionId 
+        ? this.heygenService.setSessionAudioStatus(body.sessionId, body.isMuted)
+        : this.heygenService.setGlobalAudioStatus(body.isMuted);
+      
+      return { success: true, status };
+    } catch (error) {
+      throw new BadRequestException(`Failed to set audio status: ${error.message}`);
+    }
+  }
+
+  @Get('audio/all')
+  getAllAudioStatus(): {
+    success: boolean;
+    data: { global: AudioStatus; sessions: { [sessionId: string]: AudioStatus } };
+  } {
+    try {
+      const data = this.heygenService.getAllAudioStatus();
+      return { success: true, data };
+    } catch (error) {
+      throw new BadRequestException(`Failed to get all audio status: ${error.message}`);
+    }
+  }
+
+  @Post('audio/clear/:sessionId')
+  clearSessionAudioStatus(@Param('sessionId') sessionId: string): { success: boolean; cleared: boolean } {
+    try {
+      const cleared = this.heygenService.clearSessionAudioStatus(sessionId);
+      return { success: true, cleared };
+    } catch (error) {
+      throw new BadRequestException(`Failed to clear session audio status: ${error.message}`);
     }
   }
 

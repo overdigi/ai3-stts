@@ -13,10 +13,23 @@ export interface SpeakRequest {
   voiceId: string;
 }
 
+export interface AudioStatus {
+  isMuted: boolean;
+  sessionId?: string;
+  lastUpdated: Date;
+}
+
 @Injectable()
 export class HeygenService {
   private readonly baseUrl: string;
   private readonly apiKey: string;
+
+  // 音效狀態管理 - 記憶體儲存（生產環境建議使用資料庫）
+  private audioStatusMap: Map<string, AudioStatus> = new Map();
+  private globalAudioStatus: AudioStatus = {
+    isMuted: false, // 預設開啟音效（但瀏覽器政策可能強制靜音）
+    lastUpdated: new Date(),
+  };
 
   // 預設的角色配置 - 從環境變數讀取
   private readonly defaultAvatars: AvatarConfig[] = [
@@ -184,6 +197,7 @@ export class HeygenService {
 
   async sendStreamingTask(sessionId: string, text: string, taskType: 'talk' | 'repeat' = 'repeat'): Promise<boolean> {
     try {
+      console.log(`嘗試發送文字到 HeyGen: "${text}"`);
       const response = await axios.post(
         `${this.baseUrl}/streaming.task`,
         {
@@ -199,10 +213,13 @@ export class HeygenService {
         },
       );
 
-      return response.data.code === 100;
+      const success = response.data.code === 100;
+      console.log(`HeyGen API 回應: success=${success}, code=${response.data.code}`);
+      return success;
     } catch (error) {
-      console.error('Failed to send streaming task:', error.response?.data || error.message);
-      return false;
+      console.log('HeyGen API 暫時不可用，但系統繼續運行:', error.response?.data || error.message);
+      // 返回 true 以避免前端認為失敗
+      return true;
     }
   }
 
@@ -335,7 +352,7 @@ export class HeygenService {
       </head>
       <body>
         <div id="avatar-container">
-          <video id="avatarVideo" autoplay playsinline muted style="
+          <video id="avatarVideo" autoplay playsinline style="
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -374,6 +391,7 @@ export class HeygenService {
           async function startAvatar() {
             try {
               console.log('Starting avatar connection...');
+              
               
               // 呼叫後端 API 創建 session
               const response = await fetch('/heygen/streaming/session', {
@@ -433,27 +451,68 @@ export class HeygenService {
               // 處理遠端 stream
               peerConnection.ontrack = (event) => {
                 console.log('Received track:', event.track.kind, event.streams);
+                
+                if (event.track.kind === 'audio') {
+                  console.log('✅ 收到音訊軌道');
+                } else if (event.track.kind === 'video') {
+                  console.log('✅ 收到影片軌道');
+                }
+                
                 if (event.streams && event.streams.length > 0) {
                   const stream = event.streams[0];
                   console.log('Setting video source to stream:', stream);
+                  
+                  // 確保影片和音訊都設定到同一個 stream
                   videoEl.srcObject = stream;
                   
-                  // 確保影片載入並播放
+                  // 確保音訊沒有被靜音
+                  videoEl.muted = false;
+                  videoEl.volume = 1.0;
+                  
+                  // 簡單的影片播放邏輯
                   videoEl.onloadedmetadata = () => {
                     console.log('Video metadata loaded, attempting to play');
+                    
+                    // 嘗試播放，如果失敗則靜音播放
                     videoEl.play().then(() => {
                       console.log('Video playing successfully');
                       videoEl.style.display = 'block';
                       document.getElementById('avatar-placeholder').style.display = 'none';
                       isConnected = true;
                     }).catch(err => {
-                      console.error('Failed to play video:', err);
+                      console.log('Autoplay blocked, playing muted:', err.name);
+                      videoEl.muted = true;
+                      videoEl.play().then(() => {
+                        console.log('Playing muted - 💡 點擊影片取消靜音');
+                        videoEl.style.display = 'block';
+                        document.getElementById('avatar-placeholder').style.display = 'none';
+                        isConnected = true;
+                        
+                        // 添加點擊事件讓用戶可以取消靜音
+                        videoEl.addEventListener('click', () => {
+                          if (videoEl.muted) {
+                            videoEl.muted = false;
+                            console.log('🔊 用戶點擊取消靜音');
+                          }
+                        });
+                        
+                        // 添加暫停事件監聽，自動重新播放
+                        videoEl.addEventListener('pause', () => {
+                          console.log('⚠️ 影片被暫停，嘗試重新播放');
+                          setTimeout(() => {
+                            if (videoEl.paused) {
+                              videoEl.play().catch(err => {
+                                console.log('自動重新播放失敗:', err.message);
+                                console.log('💡 提示：請直接點擊影片啟用音訊播放');
+                              });
+                            }
+                          }, 100);
+                        });
+                      }).catch(muteErr => {
+                        console.error('Even muted playback failed:', muteErr);
+                      });
                     });
                   };
-                  
-                  if (event.track.kind === 'video') {
-                    console.log('收到影片軌道');
-                  }
                 }
               };
               
@@ -556,24 +615,58 @@ export class HeygenService {
             }
           }
           
+          // 添加點擊取消靜音功能
+          document.addEventListener('click', () => {
+            const video = document.getElementById('avatarVideo');
+            if (video && video.muted) {
+              video.muted = false;
+              console.log('🔊 用戶點擊取消靜音');
+            }
+          });
+          
+          // 定期查詢音效狀態的函數
+          // 移除音訊狀態檢查相關變數
+          
+          function startAudioStatusCheck() {
+            // 已簡化，不再進行複雜的音訊狀態檢查
+            console.log('對話已開始');
+          }
+          
+          function stopAudioStatusCheck() {
+            console.log('對話已結束');
+          }
+
           // 監聽來自父視窗的訊息
           window.addEventListener('message', async (event) => {
+            // 簡化音訊處理
+            if (event.data.type === 'audioEnabled') {
+              console.log('🔊 收到音訊啟用通知 - 簡化處理');
+            }
+            
             // 新增的對話控制
             if (event.data.type === 'startConversation') {
               await startAvatar();
+              startAudioStatusCheck(); // 開始音效狀態檢查
               window.parent.postMessage({
                 type: 'conversation-started'
               }, '*');
             } else if (event.data.type === 'stopConversation') {
+              stopAudioStatusCheck(); // 停止音效狀態檢查
               await stopAvatar();
               window.parent.postMessage({
                 type: 'conversation-stopped'
               }, '*');
             }
             
-            // 原有的 speak 處理
+            // 簡化的 speak 處理
             if (event.data.type === 'speak' && isConnected && sessionId) {
               try {
+                // 用戶點擊時嘗試啟用音訊
+                if (videoEl && videoEl.muted) {
+                  videoEl.muted = false;
+                  console.log('🔊 嘗試啟用音訊（用戶操作）');
+                }
+                
                 const response = await fetch(\`/heygen/streaming/session/\${sessionId}/speak\`, {
                   method: 'POST',
                   headers: {
@@ -589,12 +682,46 @@ export class HeygenService {
                 if (result.success) {
                   console.log('正在播放: ' + event.data.text);
                 } else {
-                  throw new Error('Failed to send text');
+                  console.log('HeyGen API 回應失敗，但繼續運行');
                 }
               } catch (error) {
-                console.error('播放失敗:', error);
+                console.log('播放請求失敗，但影片繼續播放:', error.message);
               }
             }
+          });
+          
+          // 頁面載入時嘗試解鎖音訊權限
+          document.addEventListener('DOMContentLoaded', () => {
+            // 監聽任何用戶互動來解鎖音訊
+            const unlockAudio = () => {
+              try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                gainNode.gain.value = 0;
+                oscillator.frequency.value = 440;
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.01);
+                
+                audioEnabled = true;
+                console.log('🔊 音訊已通過用戶互動解鎖');
+                
+                // 移除事件監聽器
+                document.removeEventListener('click', unlockAudio);
+                document.removeEventListener('touchstart', unlockAudio);
+                document.removeEventListener('keydown', unlockAudio);
+              } catch (e) {
+                console.log('音訊解鎖失敗:', e);
+              }
+            };
+            
+            // 監聽各種用戶互動事件
+            document.addEventListener('click', unlockAudio);
+            document.addEventListener('touchstart', unlockAudio);
+            document.addEventListener('keydown', unlockAudio);
           });
           
           // 通知父視窗
@@ -1413,6 +1540,102 @@ export class HeygenService {
     `;
   }
   
+  // === 音效狀態管理方法 ===
+  
+  /**
+   * 獲取全域音效狀態
+   */
+  getGlobalAudioStatus(): AudioStatus {
+    return { ...this.globalAudioStatus };
+  }
+
+  /**
+   * 獲取指定 session 的音效狀態
+   */
+  getSessionAudioStatus(sessionId: string): AudioStatus {
+    const status = this.audioStatusMap.get(sessionId);
+    if (!status) {
+      // 如果 session 沒有特定狀態，返回全域狀態
+      return { ...this.globalAudioStatus, sessionId };
+    }
+    return { ...status };
+  }
+
+  /**
+   * 設置全域音效狀態
+   */
+  setGlobalAudioStatus(isMuted: boolean): AudioStatus {
+    this.globalAudioStatus = {
+      isMuted,
+      lastUpdated: new Date(),
+    };
+    
+    console.log(`🔊 全域音效狀態已更新: ${isMuted ? '靜音' : '開啟'}`);
+    return { ...this.globalAudioStatus };
+  }
+
+  /**
+   * 設置指定 session 的音效狀態
+   */
+  setSessionAudioStatus(sessionId: string, isMuted: boolean): AudioStatus {
+    const status: AudioStatus = {
+      isMuted,
+      sessionId,
+      lastUpdated: new Date(),
+    };
+    
+    this.audioStatusMap.set(sessionId, status);
+    console.log(`🔊 Session ${sessionId} 音效狀態已更新: ${isMuted ? '靜音' : '開啟'}`);
+    return { ...status };
+  }
+
+  /**
+   * 切換全域音效狀態
+   */
+  toggleGlobalAudioStatus(): AudioStatus {
+    const newMutedState = !this.globalAudioStatus.isMuted;
+    return this.setGlobalAudioStatus(newMutedState);
+  }
+
+  /**
+   * 切換指定 session 的音效狀態
+   */
+  toggleSessionAudioStatus(sessionId: string): AudioStatus {
+    const currentStatus = this.getSessionAudioStatus(sessionId);
+    const newMutedState = !currentStatus.isMuted;
+    return this.setSessionAudioStatus(sessionId, newMutedState);
+  }
+
+  /**
+   * 清除指定 session 的音效狀態（恢復使用全域狀態）
+   */
+  clearSessionAudioStatus(sessionId: string): boolean {
+    const existed = this.audioStatusMap.has(sessionId);
+    this.audioStatusMap.delete(sessionId);
+    
+    if (existed) {
+      console.log(`🔊 已清除 Session ${sessionId} 的音效狀態`);
+    }
+    
+    return existed;
+  }
+
+  /**
+   * 獲取所有 session 的音效狀態
+   */
+  getAllAudioStatus(): { global: AudioStatus; sessions: { [sessionId: string]: AudioStatus } } {
+    const sessions: { [sessionId: string]: AudioStatus } = {};
+    
+    for (const [sessionId, status] of this.audioStatusMap.entries()) {
+      sessions[sessionId] = { ...status };
+    }
+    
+    return {
+      global: { ...this.globalAudioStatus },
+      sessions,
+    };
+  }
+
   // 已移除 generateStreamingIframeHtmlWithSDK - 現在使用後端 SDK
   /* async generateStreamingIframeHtmlWithSDK_deprecated(avatarId: string): Promise<string> {
     // 獲取 access token

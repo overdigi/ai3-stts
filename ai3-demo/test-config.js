@@ -57,7 +57,37 @@ window.WebChat = {
 window.TestUtils = {
     log: function(message, data = null) {
         const timestamp = new Date().toLocaleTimeString();
-        const logEntry = `[${timestamp}] ${message}`;
+        
+        // 嘗試獲取調用函數的名稱
+        let functionName = '';
+        try {
+            const stack = new Error().stack;
+            const stackLines = stack.split('\n');
+            // 查找調用者的函數名稱
+            for (let i = 2; i < stackLines.length; i++) {
+                const line = stackLines[i];
+                if (line.includes('test') || line.includes('Avatar') || line.includes('function')) {
+                    const match = line.match(/at\s+(\w+)/);
+                    if (match && match[1] && match[1] !== 'log' && match[1] !== 'Object') {
+                        functionName = `[${match[1]}] `;
+                        break;
+                    }
+                    // 備用：匹配函數名稱的其他模式
+                    const altMatch = line.match(/(\w+)@|(\w+)\s*\(/);
+                    if (altMatch && (altMatch[1] || altMatch[2])) {
+                        const fname = altMatch[1] || altMatch[2];
+                        if (fname !== 'log' && fname !== 'Object') {
+                            functionName = `[${fname}] `;
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            // 如果獲取調用棧失敗，繼續執行
+        }
+        
+        const logEntry = `[${timestamp}] ${functionName}${message}`;
         
         console.log(logEntry, data || '');
         
@@ -66,7 +96,7 @@ window.TestUtils = {
         if (logContainer) {
             const logElement = document.createElement('div');
             logElement.className = 'log-entry';
-            logElement.innerHTML = `<span class="log-time">${timestamp}</span> ${message}`;
+            logElement.innerHTML = `<span class="log-time">${timestamp}</span> ${functionName ? `<span style="color: #ffa500; font-weight: bold;">${functionName}</span>` : ''}${message}`;
             if (data) {
                 logElement.innerHTML += `<pre class="log-data">${JSON.stringify(data, null, 2)}</pre>`;
             }
@@ -76,11 +106,17 @@ window.TestUtils = {
     },
     
     clearLog: function() {
+        // 在清除之前記錄觸發方法
+        this.log('🧹 測試：清除日誌');
+        
         const logContainer = document.getElementById('test-log');
         if (logContainer) {
             logContainer.innerHTML = '';
         }
         console.clear();
+        
+        // 清除後重新記錄
+        this.log('✅ 測試日誌已清除');
     },
     
     toggleAutoStart: function() {
@@ -95,6 +131,27 @@ window.TestUtils = {
         }
         
         TestUtils.log(`自動開始對話已${newValue ? '啟用' : '停用'}`);
+    },
+    
+    // 專門用於記錄函數調用的日誌函數
+    logFunctionCall: function(functionName, message, data = null) {
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = `[${timestamp}] [${functionName}] ${message}`;
+        
+        console.log(logEntry, data || '');
+        
+        // 顯示在頁面上
+        const logContainer = document.getElementById('test-log');
+        if (logContainer) {
+            const logElement = document.createElement('div');
+            logElement.className = 'log-entry';
+            logElement.innerHTML = `<span class="log-time">${timestamp}</span> <span style="color: #ffa500; font-weight: bold;">[${functionName}]</span> ${message}`;
+            if (data) {
+                logElement.innerHTML += `<pre class="log-data">${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            logContainer.appendChild(logElement);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
     }
 };
 

@@ -39,6 +39,12 @@ python3 -m http.server 8080
 - **開始對話**：點擊「開始對話」按鈕測試 `Avatar.startConversation()` 方法
 - **結束對話**：點擊「結束對話」按鈕測試 `Avatar.stopConversation()` 方法
 
+#### STT 語音識別測試
+- **開始錄音**：點擊「開始錄音」按鈕測試 `Avatar.startRecording()` 方法
+- **停止錄音**：點擊「停止錄音」按鈕測試 `Avatar.stopRecording()` 方法  
+- **檢查 STT 狀態**：檢查 STT 系統的初始化狀態和依賴
+- **測試 STT 連接**：測試 Socket.io 連接到後端 STT 服務
+
 #### 文字播放測試
 - 在左側輸入框中輸入文字
 - 點擊「播放文字」按鈕測試 `Avatar.speak()` 方法
@@ -87,6 +93,13 @@ python3 -m http.server 8080
 - 檢查 HeyGen API Key 是否正確配置
 - 查看瀏覽器控制台的 WebRTC 連接狀態
 - 確認網路連接允許 WebRTC 流量
+
+### 4. STT 語音識別失敗
+如果 STT 錄音功能無法使用：
+- 檢查 Socket.io 是否正確載入（CDN 連接）
+- 使用「測試 STT 連接」按鈕檢查後端連接
+- 確認麥克風權限已授予
+- 查看「檢查 STT 狀態」的詳細診斷信息
 
 ## 預期結果
 
