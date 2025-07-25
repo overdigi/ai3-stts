@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="pragma" content="no-cache">
+    <meta http-equiv="expires" content="0">
+    <title>AI3-STTS Avatar 對話控制測試</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+
+        .avatar-panel, .test-panel {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            background: #4a90e2;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        /* Avatar 面板樣式 */
+        .heygen-container {
+            width: 100%;
+            height: 300px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .heygen-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 10px;
+        }
+
+        .status-indicator {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            text-align: center;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status-ready { background: rgba(40, 167, 69, 0.9); color: white; }
+        .status-processing { background: rgba(255, 193, 7, 0.9); color: black; }
+        .status-error { background: rgba(220, 53, 69, 0.9); color: white; }
+
+        .input-area {
+            margin-top: 20px;
+        }
+
+        .text-input {
+            width: 100%;
+            min-height: 80px;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .text-input:focus {
+            border-color: #4a90e2;
+            outline: none;
+        }
+
+        .input-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .input-counter {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        .send-button {
+            padding: 8px 16px;
+            background: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .send-button:hover {
+            background: #357abd;
+        }
+
+        /* 測試面板樣式 */
+        .test-controls {
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group h3 {
+            color: #495057;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .test-btn {
+            padding: 10px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .test-btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .test-btn-primary:hover {
+            background: #0056b3;
+        }
+
+        .test-btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .test-btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .test-btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .test-btn-danger:hover {
+            background: #bd2130;
+        }
+
+        .test-btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .test-btn-secondary:hover {
+            background: #545b62;
+        }
+
+        .test-log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            padding: 15px;
+            border-radius: 8px;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .log-time {
+            color: #569cd6;
+            font-weight: bold;
+        }
+
+        .log-data {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+            font-size: 11px;
+            overflow-x: auto;
+        }
+
+        .system-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .system-info h4 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .system-info .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .info-label {
+            font-weight: 500;
+            color: #6c757d;
+        }
+
+        .info-value {
+            color: #495057;
+        }
+
+        @media (max-width: 768px) {
+            .test-container {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <!-- Avatar 面板 -->
+        <div class="avatar-panel">
+            <div class="panel-header">
+                <div>🤖</div>
+                <div>AI3-STTS Avatar Demo</div>
+            </div>
+            <div class="panel-content">
+                <!-- HeyGen Avatar -->
+                <div class="heygen-container">
+                    <iframe id="heygen-iframe" class="heygen-iframe"></iframe>
+                </div>
+
+                <!-- 系統資訊 -->
+                <div class="system-info">
+                    <h4>系統狀態</h4>
+                    <div class="info-item">
+                        <span class="info-label">Avatar 狀態:</span>
+                        <span class="info-value" id="avatar-status">未初始化</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">API URL:</span>
+                        <span class="info-value" id="api-url">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">自動開始:</span>
+                        <span class="info-value" id="auto-start-status">否</span>
+                    </div>
+                </div>
+
+                <!-- 輸入區域 -->
+                <div class="input-area">
+                    <textarea id="text-input" class="text-input" placeholder="輸入要播放的文字..." maxlength="1000"></textarea>
+                    <div class="input-footer">
+                        <div class="input-counter" id="input-counter">0/1000</div>
+                        <button class="send-button" id="send-button">
+                            播放文字
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 測試面板 -->
+        <div class="test-panel">
+            <div class="panel-header">
+                <div>🧪</div>
+                <div>測試控制面板</div>
+            </div>
+            <div class="panel-content">
+                <!-- 測試控制 -->
+                <div class="test-controls">
+                    <div class="control-group">
+                        <h3>對話控制</h3>
+                        <button class="test-btn test-btn-primary" onclick="testStartConversation()">
+                            開始對話
+                        </button>
+                        <button class="test-btn test-btn-secondary" onclick="testStopConversation()">
+                            結束對話
+                        </button>
+                    </div>
+                    
+                    
+                    <div class="control-group">
+                        <h3>日誌控制</h3>
+                        <button class="test-btn test-btn-secondary" onclick="TestUtils.clearLog()">
+                            清除日誌
+                        </button>
+                        <button class="test-btn test-btn-secondary" onclick="exportLog()">
+                            匯出日誌
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 測試日誌 -->
+                <div>
+                    <h3 style="margin-bottom: 10px; color: #495057;">測試日誌</h3>
+                    <div id="test-log" class="test-log">
+                        載入中...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 載入依賴 -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="ai3-stts.js"></script>
+    <script src="test-config.js"></script>
+    <script src="Avatar.js"></script>
+
+    <script>
+        // 測試函數
+        function testStartConversation() {
+            TestUtils.log('📞 測試：開始對話');
+            if (typeof Avatar !== 'undefined' && Avatar.startConversation) {
+                Avatar.startConversation();
+            } else {
+                TestUtils.log('❌ Avatar.startConversation 方法未找到');
+            }
+        }
+
+        function testStopConversation() {
+            TestUtils.log('📞 測試：結束對話');
+            if (typeof Avatar !== 'undefined' && Avatar.stopConversation) {
+                Avatar.stopConversation();
+            } else {
+                TestUtils.log('❌ Avatar.stopConversation 方法未找到');
+            }
+        }
+
+        function testReload() {
+            TestUtils.log('🔄 測試：重新載入 Avatar');
+            location.reload();
+        }
+
+        async function testHeyGenAPI() {
+            TestUtils.log('🧪 測試：檢查 HeyGen API');
+            try {
+                const response = await fetch('http://localhost:3000/heygen/test');
+                const result = await response.json();
+                TestUtils.log('HeyGen API 測試結果:', result);
+            } catch (error) {
+                TestUtils.log('❌ HeyGen API 測試失敗:', error.message);
+            }
+        }
+
+        function exportLog() {
+            const logContainer = document.getElementById('test-log');
+            const logText = logContainer.textContent;
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `avatar-test-log-${new Date().toISOString().slice(0, 19)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            TestUtils.log('📁 測試日誌已匯出');
+        }
+
+        // 更新系統資訊
+        function updateSystemInfo() {
+            const apiUrlEl = document.getElementById('api-url');
+            const autoStartEl = document.getElementById('auto-start-status');
+            const avatarStatusEl = document.getElementById('avatar-status');
+
+            if (apiUrlEl && typeof Util !== 'undefined') {
+                apiUrlEl.textContent = Util.getConfig('avaterApiUrl') || '-';
+            }
+
+            if (autoStartEl && typeof Util !== 'undefined') {
+                autoStartEl.textContent = Util.getConfig('autoStartConversation') ? '是' : '否';
+            }
+
+            if (avatarStatusEl && typeof Avatar !== 'undefined') {
+                avatarStatusEl.textContent = Avatar.isInitialized ? '已初始化' : '未初始化';
+            }
+        }
+
+        // 文字輸入處理
+        document.addEventListener('DOMContentLoaded', function() {
+            const textInput = document.getElementById('text-input');
+            const inputCounter = document.getElementById('input-counter');
+            const sendButton = document.getElementById('send-button');
+
+            if (textInput && inputCounter) {
+                textInput.addEventListener('input', function() {
+                    const length = textInput.value.length;
+                    inputCounter.textContent = `${length}/1000`;
+                });
+            }
+
+            if (sendButton && textInput) {
+                sendButton.addEventListener('click', function() {
+                    const text = textInput.value.trim();
+                    if (text) {
+                        TestUtils.log('🎤 播放文字:', text);
+                        if (typeof Avatar !== 'undefined' && Avatar.speak) {
+                            Avatar.speak(text);
+                            textInput.value = '';
+                            inputCounter.textContent = '0/1000';
+                        } else {
+                            TestUtils.log('❌ Avatar.speak 方法未找到');
+                        }
+                    }
+                });
+            }
+
+            // 初始化系統資訊
+            updateSystemInfo();
+            
+            // 減少更新頻率，避免重複日誌
+            setInterval(updateSystemInfo, 5000);
+
+            // 初始化日誌
+            TestUtils.log('🚀 AI3-STTS Avatar 測試頁面已載入');
+            TestUtils.log('📋 依賴檢查:');
+            TestUtils.log(`- Socket.io: ${typeof io !== 'undefined' ? '✅' : '❌'}`);
+            TestUtils.log(`- AI3STTS: ${typeof AI3STTS !== 'undefined' ? '✅' : '❌'}`);
+            TestUtils.log(`- Avatar: ${typeof Avatar !== 'undefined' ? '✅' : '❌'}`);
+            TestUtils.log(`- Util: ${typeof Util !== 'undefined' ? '✅' : '❌'}`);
+            TestUtils.log(`- WebChat: ${typeof WebChat !== 'undefined' ? '✅' : '❌'}`);
+        });
+
+        // Avatar 初始化完成監聽
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type) {
+                TestUtils.log(`📨 收到 iframe 訊息: ${event.data.type}`, event.data);
+                
+                // 特別處理錯誤訊息
+                if (event.data.type === 'error' || event.data.error) {
+                    TestUtils.log(`❌ iframe 錯誤: ${event.data.error || event.data.message}`);
+                }
+                
+                // 記錄 WebRTC 相關狀態
+                if (event.data.type.includes('webrtc') || event.data.type.includes('connect')) {
+                    TestUtils.log(`🔗 WebRTC 狀態: ${event.data.type}`);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

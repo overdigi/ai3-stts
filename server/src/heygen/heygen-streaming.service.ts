@@ -26,25 +26,9 @@ export class HeygenStreamingService {
       console.log('Creating HeyGen streaming session...');
       console.log('API Key:', this.apiKey ? 'Set' : 'Not set');
       
-      // 如果 API key 不正確或端點失敗，使用模擬回應
-      if (!this.apiKey || this.apiKey === 'MmE3MTA3YzE4YjI5NDA0MThkMWUyNjZjMTAwNTMxYTYtMTc1MjAxNzk0OA==') {
-        console.log('使用模擬的 HeyGen streaming session');
-        const mockSessionId = `mock-session-${Date.now()}`;
-        const sessionInfo = {
-          sessionId: mockSessionId,
-          token: 'mock-token',
-          iceServers: [],
-          createdAt: new Date(),
-        };
-        
-        this.sessions.set(mockSessionId, sessionInfo);
-        
-        // 返回 iframe URL（使用之前的備用方案）
-        return {
-          sessionId: mockSessionId,
-          token: 'mock-token',
-          url: `/heygen/iframe/${process.env.AVATAR_ID || 'bc13dd17488a44ffa46f0ccb26ba613a'}`,
-        };
+      // 檢查 API key 是否存在
+      if (!this.apiKey) {
+        throw new Error('HeyGen API key not configured');
       }
       
       const response = await axios.post(
@@ -82,23 +66,14 @@ export class HeygenStreamingService {
     } catch (error) {
       console.error('Failed to create streaming session:', error.response?.data || error.message);
       
-      // 如果真實 API 失敗，返回模擬 session
-      console.log('降級到模擬 streaming session');
-      const mockSessionId = `fallback-session-${Date.now()}`;
-      const sessionInfo = {
-        sessionId: mockSessionId,
-        token: 'mock-token',
-        iceServers: [],
-        createdAt: new Date(),
-      };
+      // 提供詳細的錯誤信息
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
+      const statusCode = error.response?.status;
       
-      this.sessions.set(mockSessionId, sessionInfo);
+      console.error(`HeyGen API Error (${statusCode}):`, errorMessage);
       
-      return {
-        sessionId: mockSessionId,
-        token: 'mock-token',
-        url: `/heygen/iframe/${process.env.AVATAR_ID || 'bc13dd17488a44ffa46f0ccb26ba613a'}`,
-      };
+      // 拋出錯誤而不是降級到模擬模式
+      throw new Error(`HeyGen API failed (${statusCode}): ${errorMessage}`);
     }
   }
 

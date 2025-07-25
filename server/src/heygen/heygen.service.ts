@@ -331,65 +331,35 @@ export class HeygenService {
             object-fit: cover;
             background: #000;
           }
-          .status {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            z-index: 10;
-          }
-          .controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            z-index: 10;
-          }
-          button {
-            padding: 10px 20px;
-            background: #4a90e2;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-          }
-          button:hover {
-            background: #357abd;
-          }
-          button:disabled {
-            background: #666;
-            cursor: not-allowed;
-          }
-          .message {
-            position: absolute;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            max-width: 80%;
-            text-align: center;
-            display: none;
-          }
         </style>
       </head>
       <body>
         <div id="avatar-container">
-          <video id="avatarVideo" autoplay playsinline></video>
-          <div class="status" id="status">初始化中...</div>
-          <div class="message" id="message"></div>
-          <div class="controls">
-            <button id="startBtn">開始對話</button>
-            <button id="stopBtn" disabled>結束對話</button>
+          <video id="avatarVideo" autoplay playsinline muted style="
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: #000;
+            display: none;
+          "></video>
+          <div id="avatar-placeholder" style="
+            width: 100%; 
+            height: 300px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-bottom: 10px;
+          ">
+            <div>
+              <h3>${avatar.name}</h3>
+              <p>🤖 Avatar 準備就緒</p>
+              <p style="font-size: 12px; opacity: 0.8;">等待連接...</p>
+            </div>
           </div>
         </div>
 
@@ -399,31 +369,11 @@ export class HeygenService {
           let sessionData = null;
           let isConnected = false;
           
-          const statusEl = document.getElementById('status');
-          const messageEl = document.getElementById('message');
-          const startBtn = document.getElementById('startBtn');
-          const stopBtn = document.getElementById('stopBtn');
           const videoEl = document.getElementById('avatarVideo');
-          
-          function updateStatus(text, type = 'info') {
-            statusEl.textContent = text;
-            statusEl.style.background = type === 'error' ? 'rgba(220,53,69,0.8)' : 
-                                       type === 'success' ? 'rgba(40,167,69,0.8)' : 
-                                       'rgba(0,0,0,0.7)';
-          }
-          
-          function showMessage(text) {
-            messageEl.textContent = text;
-            messageEl.style.display = 'block';
-            setTimeout(() => {
-              messageEl.style.display = 'none';
-            }, 3000);
-          }
           
           async function startAvatar() {
             try {
-              startBtn.disabled = true;
-              updateStatus('正在連接 HeyGen...');
+              console.log('Starting avatar connection...');
               
               // 呼叫後端 API 創建 session
               const response = await fetch('/heygen/streaming/session', {
@@ -446,13 +396,17 @@ export class HeygenService {
               sessionId = data.sessionId;
               sessionData = data;
               
-              // 建立 WebRTC 連接
-              await setupWebRTC(data);
+              // 檢查是否為模擬模式
+              if (data.sessionId && data.sessionId.includes('mock-session')) {
+                console.log('模擬模式：跳過 WebRTC 設置');
+                isConnected = true;
+              } else {
+                // 建立 WebRTC 連接
+                await setupWebRTC(data);
+              }
               
             } catch (error) {
               console.error('啟動失敗:', error);
-              updateStatus('連接失敗: ' + error.message, 'error');
-              startBtn.disabled = false;
             }
           }
           
@@ -478,25 +432,34 @@ export class HeygenService {
               
               // 處理遠端 stream
               peerConnection.ontrack = (event) => {
-                console.log('Received track:', event.track.kind);
-                if (event.track.kind === 'video') {
-                  videoEl.srcObject = event.streams[0];
-                  updateStatus('Avatar 已連接', 'success');
-                  isConnected = true;
-                  stopBtn.disabled = false;
+                console.log('Received track:', event.track.kind, event.streams);
+                if (event.streams && event.streams.length > 0) {
+                  const stream = event.streams[0];
+                  console.log('Setting video source to stream:', stream);
+                  videoEl.srcObject = stream;
+                  
+                  // 確保影片載入並播放
+                  videoEl.onloadedmetadata = () => {
+                    console.log('Video metadata loaded, attempting to play');
+                    videoEl.play().then(() => {
+                      console.log('Video playing successfully');
+                      videoEl.style.display = 'block';
+                      document.getElementById('avatar-placeholder').style.display = 'none';
+                      isConnected = true;
+                    }).catch(err => {
+                      console.error('Failed to play video:', err);
+                    });
+                  };
+                  
+                  if (event.track.kind === 'video') {
+                    console.log('收到影片軌道');
+                  }
                 }
               };
               
               // 處理連接狀態變化
               peerConnection.onconnectionstatechange = () => {
                 console.log('Connection state:', peerConnection.connectionState);
-                if (peerConnection.connectionState === 'connected') {
-                  updateStatus('已連接', 'success');
-                } else if (peerConnection.connectionState === 'failed') {
-                  updateStatus('連接失敗', 'error');
-                } else if (peerConnection.connectionState === 'disconnected') {
-                  updateStatus('已斷開', 'error');
-                }
               };
               
               // 如果有 SDP，設置遠端描述
@@ -565,8 +528,7 @@ export class HeygenService {
           
           async function stopAvatar() {
             try {
-              stopBtn.disabled = true;
-              updateStatus('正在斷開...');
+              console.log('Stopping avatar connection...');
               
               // 關閉 WebRTC 連接
               if (peerConnection) {
@@ -574,8 +536,10 @@ export class HeygenService {
                 peerConnection = null;
               }
               
-              // 停止視頻
+              // 停止視頻並重置顯示
               videoEl.srcObject = null;
+              videoEl.style.display = 'none';
+              document.getElementById('avatar-placeholder').style.display = 'flex';
               
               // 呼叫後端 API 停止 session
               if (sessionId) {
@@ -586,18 +550,28 @@ export class HeygenService {
               }
               
               isConnected = false;
-              updateStatus('已斷開');
-              startBtn.disabled = false;
               
             } catch (error) {
               console.error('停止失敗:', error);
-              updateStatus('停止失敗', 'error');
-              stopBtn.disabled = false;
             }
           }
           
           // 監聽來自父視窗的訊息
           window.addEventListener('message', async (event) => {
+            // 新增的對話控制
+            if (event.data.type === 'startConversation') {
+              await startAvatar();
+              window.parent.postMessage({
+                type: 'conversation-started'
+              }, '*');
+            } else if (event.data.type === 'stopConversation') {
+              await stopAvatar();
+              window.parent.postMessage({
+                type: 'conversation-stopped'
+              }, '*');
+            }
+            
+            // 原有的 speak 處理
             if (event.data.type === 'speak' && isConnected && sessionId) {
               try {
                 const response = await fetch(\`/heygen/streaming/session/\${sessionId}/speak\`, {
@@ -613,23 +587,15 @@ export class HeygenService {
                 
                 const result = await response.json();
                 if (result.success) {
-                  showMessage('正在播放: ' + event.data.text);
+                  console.log('正在播放: ' + event.data.text);
                 } else {
                   throw new Error('Failed to send text');
                 }
               } catch (error) {
                 console.error('播放失敗:', error);
-                updateStatus('播放失敗', 'error');
               }
             }
           });
-          
-          // 綁定按鈕事件
-          startBtn.addEventListener('click', startAvatar);
-          stopBtn.addEventListener('click', stopAvatar);
-          
-          // 初始化
-          updateStatus('準備就緒');
           
           // 通知父視窗
           window.parent.postMessage({
@@ -744,7 +710,7 @@ export class HeygenService {
         <div id="avatar-container">
           <div class="status" id="status">初始化中...</div>
           <div class="message" id="message"></div>
-          <div class="controls">
+          <div class="controls" style="display: none;">
             <button id="startBtn">開始對話</button>
             <button id="stopBtn" disabled>結束對話</button>
           </div>
@@ -923,6 +889,20 @@ export class HeygenService {
           
           // 監聽來自父視窗的訊息
           window.addEventListener('message', async (event) => {
+            // 新增的對話控制
+            if (event.data.type === 'startConversation') {
+              await startAvatar();
+              window.parent.postMessage({
+                type: 'conversation-started'
+              }, '*');
+            } else if (event.data.type === 'stopConversation') {
+              await stopAvatar();
+              window.parent.postMessage({
+                type: 'conversation-stopped'
+              }, '*');
+            }
+            
+            // 原有的 speak 處理
             if (event.data.type === 'speak' && isConnected && sessionId) {
               try {
                 const response = await fetch(\`/heygen/streaming/session/\${sessionId}/speak\`, {
@@ -1247,6 +1227,20 @@ export class HeygenService {
           
           // 監聽來自父視窗的訊息
           window.addEventListener('message', async (event) => {
+            // 新增的對話控制
+            if (event.data.type === 'startConversation') {
+              await startAvatar();
+              window.parent.postMessage({
+                type: 'conversation-started'
+              }, '*');
+            } else if (event.data.type === 'stopConversation') {
+              await stopAvatar();
+              window.parent.postMessage({
+                type: 'conversation-stopped'
+              }, '*');
+            }
+            
+            // 原有的 speak 處理
             if (event.data.type === 'speak' && isConnected && avatar) {
               try {
                 await avatar.speak({
@@ -1531,7 +1525,7 @@ export class HeygenService {
         <div id="avatar-container">
           <div class="status" id="status">初始化中...</div>
           <div class="message" id="message"></div>
-          <div class="controls">
+          <div class="controls" style="display: none;">
             <button id="startBtn" disabled>開始對話</button>
             <button id="stopBtn" disabled>結束對話</button>
           </div>
@@ -1707,6 +1701,20 @@ export class HeygenService {
           
           // 監聽來自父視窗的訊息
           window.addEventListener('message', async (event) => {
+            // 新增的對話控制
+            if (event.data.type === 'startConversation') {
+              await startAvatar();
+              window.parent.postMessage({
+                type: 'conversation-started'
+              }, '*');
+            } else if (event.data.type === 'stopConversation') {
+              await stopAvatar();
+              window.parent.postMessage({
+                type: 'conversation-stopped'
+              }, '*');
+            }
+            
+            // 原有的 speak 處理
             if (event.data.type === 'speak' && isConnected) {
               try {
                 await avatar.speak({
