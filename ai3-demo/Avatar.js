@@ -691,43 +691,37 @@ var Avatar = {
                 TestUtils.logFunctionCall('Avatar.speak', `正在播放文字: "${text}"`);
             }
             
-            if (!this.isInitialized || !this.client || !this.avatarId) {
+            if (!this.isInitialized) {
                 console.error('[Avatar.speak] ❌ Avatar 系統未初始化');
                 this.updateStatus('error', '系統未準備好');
                 return;
             }
             
-            var option = {
-                avatarId: Avatar.avatarId,
-                voiceId: Avatar.voiceId
-            };
-
-            // 使用 speakText 方法（避免使用需要 Socket.IO 的功能）
-            const result = await Avatar.client.speakText(text, option);
-
-            if (result && result.success) {
-                console.log('✅ HeyGen 播放成功:', result.messageId);
-                
-                // 向 iframe 發送播放訊息
-                if (Avatar.heygenIframe && Avatar.heygenIframe.contentWindow) {
-                    Avatar.heygenIframe.contentWindow.postMessage({
-                        type: 'speak',
-                        text: text
-                    }, '*');
-                    console.log('已向 iframe 發送文字:', text);
-                }
-                
-                this.updateStatus('processing', '播放中...');
-                
-                // 模擬播放完成（因為可能無法接收到完成事件）
-                setTimeout(() => {
-                    Avatar.updateStatus('ready', '準備就緒');
-                }, text.length * 100); // 根據文字長度估算播放時間
-                
-            } else {
-                console.error('❌ HeyGen 播放失敗:', result?.error || '未知錯誤');
-                this.updateStatus('error', '播放失敗');
+            // 檢查 iframe 是否存在
+            if (!this.heygenIframe || !this.heygenIframe.contentWindow) {
+                console.error('[Avatar.speak] ❌ HeyGen iframe 未找到');
+                this.updateStatus('error', 'iframe 未載入');
+                return;
             }
+            
+            console.log('[Avatar.speak] 向 iframe 發送播放指令...');
+            this.updateStatus('processing', '播放中...');
+            
+            // 直接發送播放訊息，iframe 會自動處理連接建立
+            this.heygenIframe.contentWindow.postMessage({
+                type: 'speak',
+                text: text
+            }, '*');
+            
+            console.log('[Avatar.speak] ✅ 已向 iframe 發送文字:', text);
+            
+            // 設置超時保護，如果 10 秒內沒有收到回應就重置狀態
+            setTimeout(() => {
+                if (this.statusIndicator && this.statusIndicator.textContent.includes('播放')) {
+                    console.log('[Avatar.speak] 播放超時，重置狀態');
+                    this.updateStatus('ready', '準備就緒');
+                }
+            }, 10000);
 
         } catch (error) {
             console.error('❌ 播放文字失敗:', error);
@@ -757,9 +751,11 @@ var Avatar = {
             // 發送文字到 HeyGen
             await this.speak(text);
             
-            // 清空輸入框
-            this.textInput.value = '';
-            this.updateInputCounter(0);
+            // 清空輸入框並避免觸發狀態檢查
+            setTimeout(() => {
+                this.textInput.value = '';
+                this.updateInputCounter(0);
+            }, 100);
             
         } catch (error) {
             console.error('發送失敗:', error);

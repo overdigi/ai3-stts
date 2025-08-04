@@ -26,7 +26,7 @@ export class HeygenController {
   @Post('streaming/session/:sessionId/speak')
   async sendStreamingTask(
     @Param('sessionId') sessionId: string,
-    @Body() body: { text: string; taskType?: 'talk' | 'repeat' },
+    @Body() body: { text: string; taskType?: 'talk' | 'repeat'; voiceId?: string },
   ) {
     if (!body.text) {
       throw new BadRequestException('text is required');
@@ -36,6 +36,7 @@ export class HeygenController {
       sessionId,
       body.text,
       body.taskType || 'repeat',
+      body.voiceId, // 傳遞 voiceId 參數
     );
     return { success };
   }

@@ -138,12 +138,17 @@ export class HeygenService {
     try {
       console.log(`創建 HeyGen LiveKit v2 streaming session for avatar: ${avatarId}`);
       
+      // 獲取聲音 ID（從環境變數或預設配置）
+      const voiceId = process.env.VOICE_ID || this.defaultAvatars[0]?.defaultVoiceId;
+      console.log(`使用聲音 ID: ${voiceId} (來源: ${process.env.VOICE_ID ? '環境變數' : '預設配置'})`);
+      
       // 直接創建 v2 streaming session（不需要單獨的 token 請求）
       const sessionResponse = await axios.post(
         `${this.baseUrl}/streaming.new`,
         {
           version: "v2",
           avatar_id: avatarId,
+          voice_id: voiceId,
           quality: "high"
         },
         {
@@ -205,15 +210,19 @@ export class HeygenService {
     }
   }
 
-  async sendStreamingTask(sessionId: string, text: string, taskType: 'talk' | 'repeat' = 'repeat'): Promise<boolean> {
+  async sendStreamingTask(sessionId: string, text: string, taskType: 'talk' | 'repeat' = 'repeat', providedVoiceId?: string): Promise<boolean> {
     try {
-      console.log(`嘗試發送文字到 HeyGen: "${text}"`);
+      // 優先使用傳入的 voiceId，否則使用環境變數或預設配置
+      const voiceId = providedVoiceId || process.env.VOICE_ID || this.defaultAvatars[0]?.defaultVoiceId;
+      console.log(`嘗試發送文字到 HeyGen: "${text}" (使用聲音 ID: ${voiceId})`);
+      
       const response = await axios.post(
         `${this.baseUrl}/streaming.task`,
         {
           session_id: sessionId,
           text: text,
           task_type: taskType,
+          voice_id: voiceId,
         },
         {
           headers: {
@@ -380,6 +389,7 @@ export class HeygenService {
         <script>
           let room = null;
           let sessionId = null;
+          const voiceId = '${avatar.defaultVoiceId}'; // 嵌入正確的 voice_id
           const statusEl = document.getElementById('status');
           const statusTextEl = document.getElementById('status-text');
           const videoEl = document.getElementById('avatarVideo');
@@ -469,7 +479,24 @@ export class HeygenService {
                 
                 if (track.kind === 'audio') {
                   console.log('✅ 收到音訊軌道');
-                  // 音訊會自動播放
+                  // 創建音訊元素來播放聲音
+                  const audioElement = document.createElement('audio');
+                  audioElement.autoplay = true;
+                  audioElement.srcObject = new MediaStream([track.mediaStreamTrack]);
+                  audioElement.volume = 1.0;
+                  
+                  // 嘗試播放音訊
+                  audioElement.play().then(() => {
+                    console.log('🔊 音訊開始播放');
+                  }).catch(error => {
+                    console.error('❌ 音訊播放失敗:', error);
+                    // 如果自動播放失敗，通知用戶需要互動
+                    console.log('💡 提示：可能需要用戶互動才能播放音訊');
+                  });
+                  
+                  // 將音訊元素添加到頁面（隱藏）
+                  audioElement.style.display = 'none';
+                  document.body.appendChild(audioElement);
                 }
               });
               
@@ -480,6 +507,21 @@ export class HeygenService {
               // 連接到 Room
               console.log('🔗 連接到 LiveKit Room:', data.url);
               await room.connect(data.url, data.accessToken);
+              
+              // 嘗試啟用音訊上下文（用戶互動觸發）
+              try {
+                // 創建一個靜音的音訊元素來啟用音訊播放
+                const silentAudio = document.createElement('audio');
+                silentAudio.muted = true;
+                silentAudio.volume = 0;
+                silentAudio.play().then(() => {
+                  console.log('🔊 音訊上下文已啟用');
+                }).catch(() => {
+                  console.log('💡 音訊上下文稍後將在有聲音時啟用');
+                });
+              } catch (error) {
+                console.log('音訊上下文初始化略過');
+              }
               
               // 通知父窗口連接成功
               window.parent.postMessage({
@@ -540,36 +582,57 @@ export class HeygenService {
                 break;
                 
               case 'speak':
-                if (room && sessionId) {
-                  try {
-                    const response = await fetch(\`/heygen/streaming/session/\${sessionId}/speak\`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        text: event.data.text,
-                        taskType: 'repeat',
-                      }),
-                    });
-                    
-                    const result = await response.json();
-                    if (result.success) {
-                      console.log('🗣️ 正在播放:', event.data.text);
-                      window.parent.postMessage({
-                        type: 'speak-started',
-                        text: event.data.text
-                      }, '*');
-                    } else {
-                      console.warn('⚠️ HeyGen API 回應失敗，但繼續運行');
-                    }
-                  } catch (error) {
-                    console.error('❌ 播放請求失敗:', error.message);
+                // 如果尚未建立連接，先自動建立連接
+                if (!room || !sessionId) {
+                  console.log('🔄 LiveKit 連接尚未建立，正在自動初始化...');
+                  await initLiveKit();
+                  
+                  // 如果初始化失敗，發送錯誤訊息
+                  if (!room || !sessionId) {
+                    console.error('❌ 無法建立 LiveKit 連接');
                     window.parent.postMessage({
                       type: 'speak-error',
-                      error: error.message
+                      error: '無法建立連接'
+                    }, '*');
+                    break;
+                  }
+                }
+                
+                // 現在可以安全地播放文字
+                try {
+                  console.log('🗣️ 準備播放文字:', event.data.text);
+                  const response = await fetch(\`/heygen/streaming/session/\${sessionId}/speak\`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      text: event.data.text,
+                      taskType: 'repeat',
+                      voiceId: voiceId, // 傳遞正確的 voice_id
+                    }),
+                  });
+                  
+                  const result = await response.json();
+                  if (result.success) {
+                    console.log('✅ HeyGen API 回應成功，正在播放:', event.data.text);
+                    window.parent.postMessage({
+                      type: 'speak-started',
+                      text: event.data.text
+                    }, '*');
+                  } else {
+                    console.warn('⚠️ HeyGen API 回應失敗，但繼續運行');
+                    window.parent.postMessage({
+                      type: 'speak-error',
+                      error: 'HeyGen API 回應失敗'
                     }, '*');
                   }
+                } catch (error) {
+                  console.error('❌ 播放請求失敗:', error.message);
+                  window.parent.postMessage({
+                    type: 'speak-error',
+                    error: error.message
+                  }, '*');
                 }
                 break;
             }
