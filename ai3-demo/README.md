@@ -2,6 +2,163 @@
 
 這個測試頁面用於測試完整的 AI3-STTS 語音互動系統，包含 Azure STT 語音識別和 HeyGen Avatar 播放功能。
 
+## ⚠️ 重要更新提醒 (feature/for-ai3-livekit 分支)
+
+此分支包含重大 API 更新，請在串接前仔細閱讀以下變更：
+
+### 🔄 HeyGen API 升級到 v2 (LiveKit)
+- **舊版本**: HeyGen API v1 使用傳統 WebRTC 方式
+- **新版本**: HeyGen API v2 使用 LiveKit 託管模式
+- **影響**: 所有 HeyGen 相關的 API 呼叫需要更新
+
+### 📝 voiceId 參數格式變更
+**舊格式** (v1):
+```javascript
+// 直接傳遞 voiceId 字串
+const payload = {
+  text: "你好",
+  voiceId: "zh-TW-HsiaoChenNeural"
+};
+```
+
+**新格式** (v2):
+```javascript
+// voiceId 需要包裝在 voice 物件中
+const payload = {
+  text: "你好",
+  voice: {
+    voice_id: "zh-TW-HsiaoChenNeural"  // 注意：使用 voice_id (底線)
+  }
+};
+```
+
+### ❌ 已移除的功能
+1. **音效控制 API**: 不再支援獨立的音效開關控制
+2. **舊版 WebRTC API**: `/heygen/webrtc/*` 端點已全部移除
+3. **ICE 配置端點**: 不再需要手動處理 ICE/SDP 交換
+
+### ✅ 新增功能
+1. **LiveKit 串流會話**: 使用 `/heygen/streaming/session` 創建會話
+2. **對話控制**: `startConversation()` 和 `stopConversation()` 方法
+3. **自動重連機制**: LiveKit 內建連線穩定性保護
+
+## 🔧 串接調整範例
+
+### 1. 創建 LiveKit 會話 (取代舊版 WebRTC)
+**舊方式** (v1):
+```javascript
+// 需要手動處理 ICE、SDP 等 WebRTC 細節
+const response = await fetch('/heygen/webrtc/new', {
+  method: 'POST',
+  body: JSON.stringify({ quality: 'high' })
+});
+// 還需要處理 ICE candidates、offer/answer 等...
+```
+
+**新方式** (v2 LiveKit):
+```javascript
+// LiveKit 自動處理所有 WebRTC 細節
+const response = await fetch('/heygen/streaming/session', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    avatarId: 'your-avatar-id',
+    voiceId: 'zh-TW-HsiaoChenNeural'
+  })
+});
+
+const data = await response.json();
+// 返回格式：
+// {
+//   sessionId: 'xxx',
+//   accessToken: 'xxx',  // LiveKit 存取令牌
+//   url: 'wss://...',    // LiveKit 伺服器地址
+//   duration: 600        // 會話時長限制(秒)
+// }
+```
+
+### 2. 發送文字到 Avatar 播放
+**舊方式** (v1):
+```javascript
+await fetch('/heygen/speak', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    text: "你好",
+    voiceId: "zh-TW-HsiaoChenNeural"  // 直接傳遞
+  })
+});
+```
+
+**新方式** (v2):
+```javascript
+// 方式 1: 使用 LiveKit 串流會話
+await fetch(`/heygen/streaming/session/${sessionId}/speak`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    text: "你好",
+    voice: {
+      voice_id: "zh-TW-HsiaoChenNeural"  // 嵌套格式
+    }
+  })
+});
+
+// 方式 2: 使用 Avatar.js 的 speak 方法
+avatar.speak("你好");  // Avatar.js 會自動處理格式轉換
+```
+
+### 3. 使用 Avatar.js 對話控制
+```javascript
+// 初始化 Avatar (自動進行)
+const avatar = new Avatar({
+  containerId: 'avatar-container',
+  apiUrl: 'http://localhost:3000'
+});
+
+// 開始對話（建立 LiveKit 連接）
+await avatar.startConversation();
+
+// 發送文字
+await avatar.speak("你好，我是 AI 助理");
+
+// 開始/停止 STT 錄音
+avatar.startRecording();  // 開始語音識別
+avatar.stopRecording();   // 停止並取得結果
+
+// 結束對話（斷開 LiveKit 連接）
+await avatar.stopConversation();
+```
+
+### 4. 處理 LiveKit 連線狀態
+```javascript
+// Avatar.js 會自動處理連線狀態，可透過事件監聽
+avatar.on('conversation-started', () => {
+  console.log('LiveKit 連線已建立');
+});
+
+avatar.on('conversation-stopped', () => {
+  console.log('LiveKit 連線已斷開');
+});
+
+avatar.on('avatar-speaking', () => {
+  console.log('Avatar 開始說話');
+});
+
+avatar.on('avatar-silent', () => {
+  console.log('Avatar 停止說話');
+});
+```
+
+### 5. 環境變數配置更新
+```env
+# .env 文件需要新增/更新以下設定
+HEYGEN_API_URL=https://api.heygen.com/v2  # v2 API
+USE_LIVEKIT=true                          # 啟用 LiveKit 模式
+AVATAR_ID=your-avatar-id                  # HeyGen Avatar ID
+VOICE_ID=zh-TW-HsiaoChenNeural           # 預設語音 ID
+```
+
 ## 文件說明
 
 - `test.html` - 主要測試頁面（包含完整的測試界面和日誌系統）
