@@ -46,31 +46,6 @@ export class HeygenController {
     return { success };
   }
 
-  @Post('streaming/session/:sessionId/answer')
-  async sendWebRTCAnswer(
-    @Param('sessionId') sessionId: string,
-    @Body() body: { answer: any },
-  ) {
-    if (!body.answer) {
-      throw new BadRequestException('answer is required');
-    }
-
-    const success = await this.heygenService.sendWebRTCAnswer(sessionId, body.answer);
-    return { success };
-  }
-
-  @Post('streaming/session/:sessionId/ice')
-  async sendICECandidate(
-    @Param('sessionId') sessionId: string,
-    @Body() body: { candidate: any },
-  ) {
-    if (!body.candidate) {
-      throw new BadRequestException('candidate is required');
-    }
-
-    const success = await this.heygenService.sendICECandidate(sessionId, body.candidate);
-    return { success };
-  }
 
   @Post('speak')
   async speakText(
@@ -167,8 +142,9 @@ export class HeygenController {
         tokenLength: token?.length || 0,
         sessionId: session.sessionId,
         hasUrl: !!session.url,
-        hasSdp: !!session.sdp,
-        hasIceServers: session.iceServers?.length > 0
+        hasAccessToken: !!session.accessToken,
+        isPaid: session.isPaid,
+        sessionDurationLimit: session.sessionDurationLimit
       };
     } catch (error) {
       return {
