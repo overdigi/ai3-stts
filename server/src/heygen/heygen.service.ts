@@ -148,7 +148,9 @@ export class HeygenService {
         {
           version: "v2",
           avatar_id: avatarId,
-          voice_id: voiceId,
+          voice: {
+            voice_id: voiceId
+          },
           quality: "high"
         },
         {
@@ -222,7 +224,9 @@ export class HeygenService {
           session_id: sessionId,
           text: text,
           task_type: taskType,
-          voice_id: voiceId,
+          voice: {
+            voice_id: voiceId
+          },
         },
         {
           headers: {
