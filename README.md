@@ -5,7 +5,7 @@ AI3-STTS 是一個整合 Azure Speech-to-Text (STT) 和 HeyGen 虛擬人物的�
 ## 🚀 功能特色
 
 - **即時語音識別**：使用 Azure Speech Services 進行高精度中文語音識別
-- **虛擬人物播放**：整合 HeyGen API 實現虛擬人物語音合成播放
+- **虛擬人物播放**：整合 HeyGen API v2 (LiveKit) 實現虛擬人物語音合成播放
 - **WebSocket 即時通訊**：低延遲的音訊資料傳輸
 - **純 JavaScript SDK**：無框架依賴，支援現代瀏覽器
 - **RESTful API**：標準化的 API 介面設計
@@ -24,7 +24,7 @@ AI3-STTS 是一個整合 Azure Speech-to-Text (STT) 和 HeyGen 虛擬人物的�
 
 ### 第三方服務
 - Azure Cognitive Services Speech API
-- HeyGen API
+- HeyGen API v2 (LiveKit)
 
 ## 🛠️ 安裝與設置
 
@@ -62,9 +62,10 @@ NODE_ENV=development
 AZURE_SPEECH_KEY=your-azure-speech-key
 AZURE_SPEECH_REGION=eastasia
 
-# HeyGen API
+# HeyGen API v2 (LiveKit)
 HEYGEN_API_KEY=your-heygen-api-key
-HEYGEN_API_URL=https://api.heygen.com/v1
+HEYGEN_API_URL=https://api.heygen.com/v2
+USE_LIVEKIT=true
 
 # CORS 設定
 CORS_ORIGIN=http://localhost:8080,http://localhost:3000
@@ -74,7 +75,8 @@ API_KEY=your-api-key
 
 # HeyGen 角色配置（只需要一組）
 AVATAR_ID=avatarId
-VOICE_ID=voiceId
+# VOICE_ID 格式：語音系統ID，例如 zh-TW-HsiaoChenNeural 或 HeyGen 內部 ID
+VOICE_ID=zh-TW-HsiaoChenNeural
 ```
 
 ### 4. 建構 SDK
@@ -296,15 +298,89 @@ await client.speakText('歡迎使用 AI3 STTS 系統', {
 
 #### REST API
 
-##### POST /heygen/speak
-播放文字到 HeyGen 虛擬人物
+##### HeyGen LiveKit v2 端點
+
+###### POST /heygen/streaming/session
+創建 HeyGen LiveKit 串流會話
+
+```javascript
+// 請求
+{
+  "avatarId": "your-avatar-id",
+  "voiceId": "zh-TW-HsiaoChenNeural"
+}
+
+// 回應
+{
+  "sessionId": "session-123",
+  "accessToken": "livekit-token",
+  "url": "wss://livekit.heygen.com",
+  "duration": 600  // 會話時長(秒)
+}
+```
+
+###### POST /heygen/streaming/session/:sessionId/speak
+發送文字到 LiveKit 串流會話
 
 ```javascript
 // 請求
 {
   "text": "要播放的文字",
+  "voice": {
+    "voice_id": "zh-TW-HsiaoChenNeural"  // 注意：v2 需要嵌套格式
+  }
+}
+
+// 回應
+{
+  "success": true,
+  "messageId": "msg-456"
+}
+```
+
+###### POST /heygen/streaming/session/:sessionId/stop
+停止 LiveKit 串流會話
+
+```javascript
+// 回應
+{
+  "success": true
+}
+```
+
+###### GET /heygen/streaming/session/:sessionId
+獲取 LiveKit 會話狀態
+
+```javascript
+// 回應
+{
+  "sessionId": "session-123",
+  "status": "active",
+  "duration": 600,
+  "remainingTime": 450
+}
+```
+
+##### 傳統端點 (向後相容)
+
+###### POST /heygen/speak
+播放文字到 HeyGen 虛擬人物 (舊版 API 或 fallback)
+
+```javascript
+// 請求 (v1 格式)
+{
+  "text": "要播放的文字",
   "avatarId": "avatar-1",
   "voiceId": "voice-1"
+}
+
+// 請求 (v2 格式)
+{
+  "text": "要播放的文字",
+  "avatarId": "avatar-1",
+  "voice": {
+    "voice_id": "zh-TW-HsiaoChenNeural"
+  }
 }
 
 // 回應
@@ -418,6 +494,35 @@ ai3-stts/
 - WebSocket 連線會自動重用
 - 音訊資料採用串流傳輸減少延遲
 - HeyGen 配置資訊會進行快取
+- LiveKit 提供自動重連和網路優化
+
+### HeyGen API v2 重要變更
+
+**voiceId 參數格式變更**
+
+在 HeyGen API v2 中，voiceId 參數需要使用嵌套的 voice 物件格式：
+
+```javascript
+// ❌ v1 格式 (不再支援)
+{
+  "text": "要播放的文字",
+  "voiceId": "zh-TW-HsiaoChenNeural"
+}
+
+// ✅ v2 格式 (必須使用)
+{
+  "text": "要播放的文字",
+  "voice": {
+    "voice_id": "zh-TW-HsiaoChenNeural"  // 注意：使用 voice_id (底線)
+  }
+}
+```
+
+**為什麼使用 v2？**
+- 更穩定的 LiveKit 託管基礎設施
+- 自動處理 WebRTC 連線細節
+- 內建重連機制提高穩定性
+- HeyGen 官方推薦和主要維護版本
 
 ## 🐛 故障排除
 
