@@ -7,9 +7,10 @@ AI3-STTS 是一個整合 Azure Speech-to-Text (STT) 和 HeyGen 虛擬人物的�
 - **即時語音識別**：使用 Azure Speech Services 進行高精度中文語音識別
 - **虛擬人物播放**：整合 HeyGen API v2 (LiveKit) 實現虛擬人物語音合成播放
 - **WebSocket 即時通訊**：低延遲的音訊資料傳輸
-- **純 JavaScript SDK**：無框架依賴，支援現代瀏覽器
+- **純 JavaScript SDK**：無框架依賴，支援現代瀏覽器，支援動態模式切換
 - **RESTful API**：標準化的 API 介面設計
-- **簡單易用**：提供完整的範例應用程式
+- **會話管理**：超時計算、自動清理和狀態監控
+- **簡單易用**：提供完整的範例應用程式和測試介面
 
 ## 📋 系統需求
 
@@ -67,6 +68,14 @@ HEYGEN_API_KEY=your-heygen-api-key
 HEYGEN_API_URL=https://api.heygen.com/v2
 USE_LIVEKIT=true
 
+# HeyGen 直接模式設定 (新增)
+# 啟用 HeyGen 直接模式
+ENABLE_HEYGEN_DIRECT_MODE=true
+# 直接模式會話超時時間（分鐘）
+HEYGEN_DIRECT_SESSION_TIMEOUT=10
+# 會話清理間隔（分鐘）
+HEYGEN_SESSION_CLEANUP_INTERVAL=5
+
 # CORS 設定
 CORS_ORIGIN=http://localhost:8080,http://localhost:3000
 
@@ -97,6 +106,62 @@ npm run start:dev
 # 生產模式
 npm run build
 npm run start:prod
+```
+
+## 🏗️ HeyGen 直接整合
+
+### HeyGen 整合特色
+- **直接調用 API**：完全控制會話生命週期
+- **即時狀態監控**：掌握會話狀態變化
+- **功能**：
+  - 即時會話狀態監控
+  - 自動會話管理和清理
+  - 會話延長 (keepalive)
+  - WebSocket 即時通訊
+  - 完整的錯誤處理
+
+### SDK 初始化
+```javascript
+// 初始化 AI3STTS 客戶端
+const client = new AI3STTS({
+  apiUrl: 'http://localhost:3000',
+  apiKey: 'your-api-key'
+});
+```
+
+### 會話管理
+```javascript
+// 建立會話
+const session = await client.createHeyGenDirectSession({
+  avatarId: 'your-avatar-id',
+  voiceId: 'your-voice-id',
+  onSessionUpdate: (status) => {
+    console.log('會話狀態:', status);
+  }
+});
+
+// 使用會話播放文字
+await session.speak('你好，我是虛擬助手！');
+
+// 延長會話時間 (Keepalive)
+await session.keepalive(); // 重置超時計時器
+
+// 停止會話
+await session.stop();
+```
+
+### 會話延長 (Keepalive)
+
+```javascript
+// 延長會話時間
+const response = await fetch('/heygen-direct/session/SESSION_ID/keepalive', {
+  method: 'POST',
+  headers: { 'x-api-key': 'your-api-key' }
+});
+
+if (response.ok) {
+  console.log('會話時間已延長');
+}
 ```
 
 ## 📖 使用方式
@@ -262,10 +327,6 @@ mediaRecorder.start(100); // 每 100ms 發送一次
 
 #### HeyGen 虛擬人物
 ```javascript
-// 取得 iframe URL
-const iframeUrl = client.getIframeUrl('avatar-1');
-document.getElementById('heygen-iframe').src = iframeUrl;
-
 // 播放文字
 await client.speakText('歡迎使用 AI3 STTS 系統', {
   avatarId: 'avatar-1',
@@ -338,6 +399,20 @@ await client.speakText('歡迎使用 AI3 STTS 系統', {
 }
 ```
 
+###### POST /heygen/streaming/session/:sessionId/keepalive
+延長 LiveKit 串流會話時間
+
+```javascript
+// 請求
+// 無需 body，僅需要正確的 API key
+
+// 回應
+{
+  "success": true,
+  "message": "會話計時器已重置"
+}
+```
+
 ###### POST /heygen/streaming/session/:sessionId/stop
 停止 LiveKit 串流會話
 
@@ -358,6 +433,86 @@ await client.speakText('歡迎使用 AI3 STTS 系統', {
   "status": "active",
   "duration": 600,
   "remainingTime": 450
+}
+```
+
+##### HeyGen Direct v2 端點 🆕
+
+###### POST /heygen-direct/session
+創建 HeyGen 直接會話
+
+```javascript
+// 請求
+{
+  "avatarId": "your-avatar-id",
+  "voiceId": "zh-TW-HsiaoChenNeural",
+  "timeout": 600000  // 可選：自訂超時時間（毫秒）
+}
+
+// 回應
+{
+  "success": true,
+  "sessionId": "direct-session-123",
+  "livekitUrl": "wss://heygen-xxx.livekit.cloud",
+  "livekitToken": "eyJhbGciOiJIUzI1NiIs...",
+  "realtimeEndpoint": "wss://webrtc-signaling.heygen.io/...",
+  "message": "HeyGen 直接會話已建立"
+}
+```
+
+###### POST /heygen-direct/session/:sessionId/speak
+發送文字到直接會話
+
+```javascript
+// 請求
+{
+  "text": "要播放的文字"
+}
+
+// 回應
+{
+  "success": true,
+  "message": "文字已發送到 HeyGen"
+}
+```
+
+###### POST /heygen-direct/session/:sessionId/keepalive
+延長直接會話時間
+
+```javascript
+// 請求
+// 無需 body，僅需要正確的 API key
+
+// 回應
+{
+  "success": true,
+  "message": "會話計時器已重置"
+}
+```
+
+###### POST /heygen-direct/session/:sessionId/stop
+停止直接會話
+
+```javascript
+// 回應
+{
+  "success": true,
+  "message": "會話已停止"
+}
+```
+
+###### GET /heygen-direct/session/:sessionId
+獲取直接會話狀態
+
+```javascript
+// 回應
+{
+  "sessionId": "direct-session-123",
+  "status": "ready",  // idle, initializing, ready, speaking, stopped
+  "createdAt": "2024-01-01T12:00:00Z",
+  "lastActivityAt": "2024-01-01T12:05:00Z",
+  "timeout": 600000,
+  "remainingTime": 540000
 }
 ```
 
@@ -406,8 +561,16 @@ await client.speakText('歡迎使用 AI3 STTS 系統', {
 }
 ```
 
-##### GET /heygen/iframe/:avatarId
-取得 HeyGen iframe HTML 頁面
+
+## 🚀 更新日誌
+
+### v4.1 (2024-08-24)
+- 新增會話延長功能 (keepalive)
+- 優化超時計算邏輯
+- 修正會話 ID 錯誤問題
+- 新增 HeyGen Direct API 端點
+
+---
 
 ## 🎯 範例應用程式
 
