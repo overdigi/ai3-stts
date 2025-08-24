@@ -1,65 +1,3 @@
-// var Avatar = {
-
-//     client:null ,
-//     avatarId:null,
-//     voiceId:null,
-//     avatarName:null,
-
-//     doLoad: function () {
-//         this.initAvatar();
-//     },
-
-//     initAvatar: function (){
-//         Avatar.client = new AI3STTS({
-//             apiUrl: Util.getConfig("avaterApiUrl"),
-//             apiKey: Util.getConfig("avaterApiKey")
-//         });
-        
-//         WebChat.ajax({
-//             url: Util.getConfig("avaterApiUrl") + "/heygen/config",
-//             method: "GET",
-//             success: function (ret) {
-//                 var avatar = ret.avatars[0]
-//                 Avatar.avatarId = avatar.id;
-//                 Avatar.voiceId = avatar.defaultVoiceId;
-//                 Avatar.avatarName = avatar.name;
-//                 const iframeUrl = Avatar.client.getIframeUrl(Avatar.avatarId);
-//                 document.getElementById('heygen-iframe').src = iframeUrl;
-                
-//             },
-//         });
-            
-//     },
-
-//     speak: async function (text) {
-//         var option = {
-//             avatarId: Avatar.avatarId,
-//             voiceId: Avatar.voiceId
-//         }
-
-//         await Avatar.client.speakText(text, option);
-//         // WebChat.ajax({
-//         //     url: Util.getConfig("avaterApiUrl") + "/heygen/speak",
-//         //     type: "post",
-//         //     data:{
-//         //         "text": text,
-//         //         "avatarId": this.avatarId,
-//         //         "voiceId": this.voiceId
-//         //     },
-//         //     success: function (ret) {
-//         //     },
-//         //     error: function (ret) {
-//         //         console.log(ret);
-//         //     },
-//         // });
-//     },
-
-
-//     disconnect:function(){
-//         Avatar.client.disconnect();
-    
-//     }
-// }
 
 var Avatar = {
     // 原有屬性
@@ -78,11 +16,17 @@ var Avatar = {
     micButton: null,
     transcriptText: null,
     statusIndicator: null,
-    heygenIframe: null,
     permissionModal: null,
     textInput: null,
     sendButton: null,
     inputCounter: null,
+    modeSelector: null,
+    modeStatus: null,
+
+    // HeyGen 直接模式相關
+    directSession: null,
+    directSocket: null,
+    player: null, // LiveKit Player
 
     // 功能開關
     enableSTT: true, // 重新啟用 STT 功能
@@ -153,13 +97,18 @@ var Avatar = {
                 throw new Error('Avatar API URL 未配置');
             }
             
-            // 初始化 AI3STTS 客戶端
-            console.log('正在初始化 AI3STTS 客戶端...');
-            Avatar.client = new AI3STTS({
+            // 固定使用直接模式
+            this.currentMode = 'direct';
+            
+            // 初始化 AI3STTS 客戶端（直接模式專用）
+            console.log('正在初始化 AI3STTS 客戶端（直接模式）...');
+            const clientConfig = {
                 apiUrl: apiUrl,
                 apiKey: apiKey
-            });
-            console.log('✅ AI3STTS 客戶端初始化成功');
+            };
+
+            Avatar.client = new AI3STTS(clientConfig);
+            console.log('✅ AI3STTS 客戶端初始化成功 (模式:', this.currentMode, ')');
             
             // 載入 Avatar 配置
             this.loadAvatarConfig();
@@ -191,10 +140,12 @@ var Avatar = {
                         name: Avatar.avatarName
                     });
                     
-                    // 載入 HeyGen iframe
-                    Avatar.loadHeyGenIframe();
+                    // 直接模式準備就緒
                     Avatar.updateStatus('ready', '準備就緒');
                     Avatar.isInitialized = true;
+                    
+                    // 更新模式狀態顯示
+                    Avatar.updateModeStatus();
                     
                     // 自動開始對話（可透過設定控制）
                     if (Util.getConfig("autoStartConversation") === true) {
@@ -219,21 +170,23 @@ var Avatar = {
         this.micButton = document.getElementById('mic-button');
         this.transcriptText = document.getElementById('transcript-text');
         this.statusIndicator = document.getElementById('status-indicator');
-        this.heygenIframe = document.getElementById('heygen-iframe');
         this.permissionModal = document.getElementById('permission-modal');
         this.textInput = document.getElementById('text-input');
         this.sendButton = document.getElementById('send-button');
         this.inputCounter = document.getElementById('input-counter');
+        this.modeSelector = document.getElementById('mode-selector');
+        this.modeStatus = document.getElementById('mode-status');
 
         // 檢查元素是否正確找到並記錄
         console.log('=== UI Elements 初始化檢查 ===');
         console.log('micButton:', this.micButton ? '✓' : '✗', this.micButton);
         console.log('transcriptText:', this.transcriptText ? '✓' : '✗', this.transcriptText);
         console.log('statusIndicator:', this.statusIndicator ? '✓' : '✗', this.statusIndicator);
-        console.log('heygenIframe:', this.heygenIframe ? '✓' : '✗', this.heygenIframe);
         console.log('textInput:', this.textInput ? '✓' : '✗', this.textInput);
         console.log('sendButton:', this.sendButton ? '✓' : '✗', this.sendButton);
         console.log('inputCounter:', this.inputCounter ? '✓' : '✗', this.inputCounter);
+        console.log('modeSelector:', this.modeSelector ? '✓' : '✗', this.modeSelector);
+        console.log('modeStatus:', this.modeStatus ? '✓' : '✗', this.modeStatus);
         
         // 設置初始狀態
         if (this.transcriptText) {
@@ -243,21 +196,6 @@ var Avatar = {
         }
     },
 
-    loadHeyGenIframe: function () {
-        if (Avatar.client && Avatar.avatarId) {
-            try {
-                const iframeUrl = Avatar.client.getIframeUrl(Avatar.avatarId);
-                if (this.heygenIframe) {
-                    this.heygenIframe.src = iframeUrl;
-                    console.log('✅ HeyGen iframe 載入成功:', iframeUrl);
-                } else {
-                    console.warn('⚠️ HeyGen iframe 元素未找到');
-                }
-            } catch (error) {
-                console.error('❌ 載入 HeyGen iframe 失敗:', error);
-            }
-        }
-    },
 
     setupEventListeners: function () {
         // 麥克風按鈕事件
@@ -292,43 +230,7 @@ var Avatar = {
             });
         }
 
-        // 監聽 HeyGen iframe 訊息
-        window.addEventListener('message', (event) => {
-            if (!event.data || !event.data.type) return;
-            
-            switch (event.data.type) {
-                case 'iframe-ready':
-                    console.log('HeyGen iframe 準備完成:', event.data);
-                    Avatar.updateStatus('ready', '準備就緒');
-                    break;
-                    
-                case 'speak-started':
-                    console.log('開始播放語音:', event.data.text);
-                    Avatar.updateStatus('processing', '播放中...');
-                    break;
-                    
-                case 'speak-completed':
-                    console.log('語音播放完成:', event.data.text);
-                    Avatar.updateStatus('ready', '準備就緒');
-                    break;
-                    
-                case 'speak-error':
-                    console.error('語音播放錯誤:', event.data.error);
-                    Avatar.updateStatus('error', '播放失敗');
-                    break;
-                    
-                // 新增對話狀態處理
-                case 'conversation-started':
-                    console.log('HeyGen 對話已開始');
-                    Avatar.updateStatus('ready', '對話進行中');
-                    break;
-                    
-                case 'conversation-stopped':
-                    console.log('HeyGen 對話已結束');
-                    Avatar.updateStatus('ready', '準備就緒');
-                    break;
-            }
-        });
+        // 直接模式不需要額外的訊息監聽器
 
         // 文字輸入框事件
         if (this.textInput) {
@@ -684,11 +586,11 @@ var Avatar = {
 
     speak: async function (text) {
         try {
-            console.log('[Avatar.speak] 正在播放文字:', text);
+            console.log('[Avatar.speak] 正在播放文字 (模式:', this.currentMode, '):', text);
             
             // 使用專門的函數調用日誌
             if (typeof TestUtils !== 'undefined' && TestUtils.logFunctionCall) {
-                TestUtils.logFunctionCall('Avatar.speak', `正在播放文字: "${text}"`);
+                TestUtils.logFunctionCall('Avatar.speak', `正在播放文字: "${text}" (模式: ${this.currentMode})`);
             }
             
             if (!this.isInitialized) {
@@ -697,36 +599,150 @@ var Avatar = {
                 return;
             }
             
-            // 檢查 iframe 是否存在
-            if (!this.heygenIframe || !this.heygenIframe.contentWindow) {
-                console.error('[Avatar.speak] ❌ HeyGen iframe 未找到');
-                this.updateStatus('error', 'iframe 未載入');
-                return;
-            }
-            
-            console.log('[Avatar.speak] 向 iframe 發送播放指令...');
             this.updateStatus('processing', '播放中...');
-            
-            // 直接發送播放訊息，iframe 會自動處理連接建立
-            this.heygenIframe.contentWindow.postMessage({
-                type: 'speak',
-                text: text
-            }, '*');
-            
-            console.log('[Avatar.speak] ✅ 已向 iframe 發送文字:', text);
-            
-            // 設置超時保護，如果 10 秒內沒有收到回應就重置狀態
-            setTimeout(() => {
-                if (this.statusIndicator && this.statusIndicator.textContent.includes('播放')) {
-                    console.log('[Avatar.speak] 播放超時，重置狀態');
-                    this.updateStatus('ready', '準備就緒');
-                }
-            }, 10000);
+
+            // 直接模式播放
+            await this.speakDirectMode(text);
 
         } catch (error) {
             console.error('❌ 播放文字失敗:', error);
             this.updateStatus('error', '播放失敗: ' + error.message);
         }
+    },
+
+
+    speakDirectMode: async function(text) {
+        console.log('[Avatar.speakDirectMode] 使用直接模式播放...');
+        
+        try {
+            // 確保有活動的直接會話
+            if (!this.directSession) {
+                console.log('[Avatar.speakDirectMode] 建立新的直接會話...');
+                await this.createDirectSession();
+            }
+            
+            if (!this.directSession) {
+                throw new Error('無法建立直接會話');
+            }
+
+            // 使用官方 SDK 播放文字（返回 Promise<void>）
+            await this.directSession.speak(text);
+            console.log('[Avatar.speakDirectMode] ✅ 官方 SDK 播放成功:', text);
+            this.updateStatus('ready', '播放完成');
+
+        } catch (error) {
+            console.error('[Avatar.speakDirectMode] 直接模式播放失敗:', error);
+            
+            // 嘗試重新建立會話
+            this.directSession = null;
+            throw error;
+        }
+    },
+
+    createDirectSession: async function() {
+        try {
+            console.log('[Avatar.createDirectSession] 建立 HeyGen 直接會話...');
+            
+            if (!this.client) {
+                throw new Error('AI3STTS 客戶端未初始化');
+            }
+
+            // 使用官方 SDK 建立會話
+            this.directSession = await this.client.createOfficialAvatarSession({
+                avatarId: this.avatarId,
+                voiceId: this.voiceId,
+            });
+
+            console.log('[Avatar.createDirectSession] ✅ 官方 SDK 會話建立成功');
+            
+            // 取得媒體容器並初始化 Avatar
+            const container = document.getElementById('heygen-player');
+            if (container) {
+                console.log('[Avatar] 初始化 Avatar 到容器...');
+                this.updateStatus('initializing', '初始化 Avatar...');
+                
+                await this.directSession.initialize(container);
+                
+                console.log('[Avatar] ✅ Avatar 初始化成功');
+                this.updateStatus('ready', '準備就緒');
+            } else {
+                console.warn('[Avatar] heygen-player 容器未找到，使用無容器模式');
+                await this.directSession.initialize();
+                this.updateStatus('ready', '準備就緒');
+            }
+            
+            // 監聽狀態變化
+            const checkState = () => {
+                if (!this.directSession) {
+                    console.log('[Avatar] 會話已結束，停止狀態檢查');
+                    return;
+                }
+                
+                const state = this.directSession.getState();
+                console.log('[Avatar] Avatar 狀態:', state);
+                
+                switch (state) {
+                    case 'connecting':
+                        this.updateStatus('initializing', '連接中...');
+                        break;
+                    case 'connected':
+                        this.updateStatus('ready', '準備就緒');
+                        break;
+                    case 'inactive':
+                        this.updateStatus('idle', '未連接');
+                        break;
+                }
+                
+                this.updateModeStatus();
+            };
+            
+            // 定期檢查狀態
+            const stateInterval = setInterval(() => {
+                if (!this.directSession) {
+                    clearInterval(stateInterval);
+                    return;
+                }
+                checkState();
+            }, 1000);
+            
+            // 5 秒後停止檢查
+            setTimeout(() => {
+                clearInterval(stateInterval);
+            }, 5000)
+            
+            return this.directSession;
+
+        } catch (error) {
+            console.error('[Avatar.createDirectSession] 建立直接會話失敗:', error);
+            this.updateStatus('error', '建立直接會話失敗: ' + error.message);
+            throw error;
+        }
+    },
+
+
+    updateModeStatus: function() {
+        if (!this.modeStatus) return;
+
+        let statusText = '';
+        let className = 'mode-status';
+
+        // 官方 SDK 模式狀態
+        if (this.directSession) {
+            const state = this.directSession.getState();
+            const stateTexts = {
+                'inactive': '未連接',
+                'connecting': '連接中',
+                'connected': '已連接'
+            };
+            statusText = `官方SDK模式 (${stateTexts[state] || state})`;
+            className += state === 'connected' ? ' mode-direct active' : ' mode-direct connecting';
+        } else {
+            statusText = '官方SDK模式 (無會話)';
+            className += ' mode-direct inactive';
+        }
+
+        this.modeStatus.textContent = statusText;
+        this.modeStatus.className = className;
     },
 
     async sendText() {
@@ -823,39 +839,44 @@ var Avatar = {
             return;
         }
         
-        if (this.heygenIframe && this.heygenIframe.contentWindow) {
-            // 先發送音訊啟用消息
-            this.heygenIframe.contentWindow.postMessage({
-                type: 'audioEnabled'
-            }, '*');
-            console.log('🔊 已發送音訊啟用指令到 iframe');
+        try {
+            // 直接模式：確保有活動的會話
+            if (!this.directSession) {
+                console.log('建立新的直接會話...');
+                await this.createDirectSession();
+            }
             
-            // 延遲一點再發送開始對話消息
-            setTimeout(() => {
-                this.heygenIframe.contentWindow.postMessage({
-                    type: 'startConversation'
-                }, '*');
-                this.updateStatus('processing', '正在開始對話...');
-                console.log('已發送開始對話指令到 iframe');
-            }, 100);
-        } else {
-            console.error('❌ HeyGen iframe 未找到');
-            this.updateStatus('error', 'iframe 未載入');
+            this.updateStatus('ready', '對話已開始');
+            console.log('✅ 直接模式對話已開始');
+        } catch (error) {
+            console.error('❌ 開始對話失敗:', error);
+            this.updateStatus('error', '開始對話失敗');
         }
     },
 
     stopConversation: async function() {
         console.log('結束 HeyGen 對話');
         
-        if (this.heygenIframe && this.heygenIframe.contentWindow) {
-            this.heygenIframe.contentWindow.postMessage({
-                type: 'stopConversation'
-            }, '*');
-            this.updateStatus('processing', '正在結束對話...');
-            console.log('已發送結束對話指令到 iframe');
-        } else {
-            console.error('❌ HeyGen iframe 未找到');
-            this.updateStatus('error', 'iframe 未載入');
+        try {
+            // 斷開 LiveKit 連接
+            if (this.player && this.player.disconnect) {
+                await this.player.disconnect();
+                this.player = null;
+                console.log('✅ LiveKit 連接已斷開');
+            }
+            
+            // 直接模式：停止活動的會話
+            if (this.directSession) {
+                await this.directSession.stop();
+                this.directSession = null;
+                console.log('✅ 直接會話已停止');
+            }
+            
+            this.updateStatus('ready', '對話已結束');
+            console.log('✅ 直接模式對話已結束');
+        } catch (error) {
+            console.error('❌ 結束對話失敗:', error);
+            this.updateStatus('error', '結束對話失敗');
         }
     },
 

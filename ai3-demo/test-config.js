@@ -3,7 +3,7 @@ window.Util = {
     config: {
         avaterApiUrl: 'http://localhost:3000',
         avaterApiKey: 'test-api-key',
-        autoStartConversation: false // 預設不自動開始，透過測試按鈕控制
+        autoStartConversation: false, // 預設不自動開始，透過測試按鈕控制
     },
     
     getConfig: function(key) {

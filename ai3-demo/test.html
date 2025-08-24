@@ -65,12 +65,6 @@
             margin-bottom: 20px;
         }
 
-        .heygen-iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            border-radius: 10px;
-        }
 
         .status-indicator {
             position: absolute;
@@ -275,8 +269,30 @@
             </div>
             <div class="panel-content">
                 <!-- HeyGen Avatar -->
-                <div class="heygen-container">
-                    <iframe id="heygen-iframe" class="heygen-iframe"></iframe>
+                <div class="heygen-container" id="heygen-player">
+                    <!-- LiveKit Video 元素 -->
+                    <video 
+                        id="heygen-video" 
+                        autoplay 
+                        playsinline
+                        style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px; display: none;"
+                    ></video>
+                    
+                    <!-- 音頻元素（如果需要單獨處理音頻） -->
+                    <audio 
+                        id="heygen-audio" 
+                        autoplay
+                        style="display: none;"
+                    ></audio>
+                    
+                    <!-- 載入中顯示 -->
+                    <div id="heygen-loading" style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-family: Arial, sans-serif; text-align: center; border-radius: 10px;">
+                        <div>
+                            <h3>🤖 HeyGen LiveKit 模式</h3>
+                            <p>使用 LiveKit 直接整合</p>
+                            <p style="font-size: 12px; opacity: 0.8;" id="status-text">準備就緒</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 系統資訊 -->
@@ -293,6 +309,15 @@
                     <div class="info-item">
                         <span class="info-label">自動開始:</span>
                         <span class="info-value" id="auto-start-status">否</span>
+                    </div>
+                </div>
+
+                <!-- HeyGen 模式控制 -->
+                <div class="system-info">
+                    <h4>HeyGen 狀態</h4>
+                    <div class="info-item">
+                        <span class="info-label">運行模式:</span>
+                        <span class="info-value" id="mode-status">直接模式</span>
                     </div>
                 </div>
 
@@ -347,6 +372,16 @@
                     
 
                     <div class="control-group">
+                        <h3>HeyGen 會話控制</h3>
+                        <button class="test-btn test-btn-success" onclick="testCreateDirectSession()">
+                            建立會話
+                        </button>
+                        <button class="test-btn test-btn-danger" onclick="testStopDirectSession()">
+                            停止會話
+                        </button>
+                    </div>
+
+                    <div class="control-group">
                         <h3>日誌控制</h3>
                         <button class="test-btn test-btn-secondary" onclick="TestUtils.clearLog()">
                             清除日誌
@@ -370,6 +405,28 @@
 
     <!-- 載入依賴 -->
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <!-- LiveKit Client SDK -->
+    <script src="https://unpkg.com/livekit-client@1.15.13/dist/livekit-client.umd.js"></script>
+    <script>
+        // 確保 LiveKit SDK 全域可用
+        window.addEventListener('load', function() {
+            if (typeof window !== 'undefined' && typeof LivekitClient !== 'undefined') {
+                window.LivekitClient = LivekitClient;
+                console.log('✅ LiveKit Client SDK 已載入:', Object.keys(LivekitClient));
+            } else if (typeof window !== 'undefined' && typeof window.LivekitClient !== 'undefined') {
+                console.log('✅ LiveKit Client SDK 已全域載入:', Object.keys(window.LivekitClient));
+            } else {
+                console.warn('❌ LiveKit Client SDK 載入失敗');
+                // 嘗試延遲載入
+                setTimeout(function() {
+                    if (typeof LivekitClient !== 'undefined') {
+                        window.LivekitClient = LivekitClient;
+                        console.log('✅ LiveKit Client SDK 延遲載入成功');
+                    }
+                }, 1000);
+            }
+        });
+    </script>
     <script src="ai3-stts.js"></script>
     <script src="test-config.js"></script>
     <script src="Avatar.js"></script>
@@ -390,7 +447,7 @@
         }
 
         // 預先啟用音訊權限的函數
-        function enableAudioForIframe() {
+        function enableAudioPermission() {
             try {
                 // 創建一個很短的無聲音訊來啟用音訊上下文
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -406,13 +463,7 @@
                 
                 TestUtils.log('🔊 已預先啟用音訊權限');
                 
-                // 發送音訊已啟用的消息給 iframe
-                const iframe = document.getElementById('heygen-iframe');
-                if (iframe && iframe.contentWindow) {
-                    iframe.contentWindow.postMessage({
-                        type: 'audioEnabled'
-                    }, '*');
-                }
+                // 音訊已啟用，準備進行語音識別
             } catch (error) {
                 TestUtils.log('⚠️ 音訊權限啟用失敗:', error.message);
             }
@@ -603,7 +654,7 @@
          * 更新音效狀態顯示
          */
 
-        // iframe 點擊事件處理 - 改為呼叫 API
+        // 直接呼叫 API 進行語音合成
 
         // 文字輸入處理
         document.addEventListener('DOMContentLoaded', function() {
@@ -635,6 +686,10 @@
                 });
             }
 
+            // 初始化模式選擇器
+            // 設定為直接模式
+            document.getElementById('mode-status').textContent = '直接模式';
+            
             // 初始化系統資訊
             updateSystemInfo();
             
@@ -664,23 +719,46 @@
             }
         });
 
-        // Avatar 初始化完成監聽
-        window.addEventListener('message', function(event) {
-            if (event.data && event.data.type) {
-                TestUtils.log(`📨 收到 iframe 訊息: ${event.data.type}`, event.data);
-                
-                
-                // 特別處理錯誤訊息
-                if (event.data.type === 'error' || event.data.error) {
-                    TestUtils.log(`❌ iframe 錯誤: ${event.data.error || event.data.message}`);
-                }
-                
-                // 記錄 WebRTC 相關狀態
-                if (event.data.type.includes('webrtc') || event.data.type.includes('connect')) {
-                    TestUtils.log(`🔗 WebRTC 狀態: ${event.data.type}`);
-                }
+        // 直接模式不需要 message 監聽器
+
+        // 初始化模式選擇器
+        // HeyGen 會話測試函數
+
+        function testCreateDirectSession() {
+            TestUtils.logFunctionCall('testCreateDirectSession', '建立會話');
+            
+            if (Avatar && Avatar.createDirectSession) {
+                Avatar.createDirectSession().then(session => {
+                    TestUtils.log('✅ 會話建立成功:', session.sessionId);
+                }).catch(error => {
+                    TestUtils.log('❌ 建立會話失敗:', error.message);
+                });
+            } else {
+                TestUtils.log('❌ Avatar.createDirectSession 方法未找到');
             }
-        });
+        }
+
+        function testStopDirectSession() {
+            TestUtils.logFunctionCall('testStopDirectSession', '停止會話');
+            
+            if (Avatar && Avatar.directSession && Avatar.directSession.stop) {
+                Avatar.directSession.stop().then(result => {
+                    TestUtils.log('✅ 會話停止成功:', result);
+                    Avatar.directSession = null;
+                }).catch(error => {
+                    TestUtils.log('❌ 停止會話失敗:', error.message);
+                });
+            } else if (Avatar && Avatar.client && Avatar.client.stopAllHeyGenDirectSessions) {
+                Avatar.client.stopAllHeyGenDirectSessions().then(() => {
+                    TestUtils.log('✅ 所有會話已停止');
+                    Avatar.directSession = null;
+                }).catch(error => {
+                    TestUtils.log('❌ 停止所有會話失敗:', error.message);
+                });
+            } else {
+                TestUtils.log('❌ 沒有活動的會話或相關方法未找到');
+            }
+        }
     </script>
 </body>
 </html>
