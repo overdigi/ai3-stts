@@ -25,6 +25,7 @@ var Avatar = {
 
     // HeyGen 直接模式相關
     directSession: null,
+    heygenDirectSession: null, // HeyGen Direct Session with sessionId
     directSocket: null,
     player: null, // LiveKit Player
 
@@ -661,6 +662,7 @@ var Avatar = {
             
             // 嘗試重新建立會話
             this.directSession = null;
+            this.heygenDirectSession = null;
             throw error;
         }
     },
@@ -685,8 +687,11 @@ var Avatar = {
             this.sessionCreatedAt = new Date();
             this.sessionTimeout = options.timeout || null; // 接受測試傳入的超時時間
             
+            console.log('[Avatar.createDirectSession] ⏰ 初始會話計時設置:', this.sessionCreatedAt.toISOString());
             if (this.sessionTimeout) {
-                console.log(`[Avatar.createDirectSession] 設定會話超時: ${this.sessionTimeout}ms`);
+                const timeoutSeconds = Math.round(this.sessionTimeout / 1000);
+                console.log(`[Avatar.createDirectSession] ⚙️ 設定會話超時: ${timeoutSeconds} 秒`);
+                console.log('[Avatar.createDirectSession] 📝 注意：實際計時將從畫面出現或 LiveKit 連線成功時重新開始');
             }
             
             // 同時創建 HeyGenDirectSession 以支援新功能
@@ -699,6 +704,9 @@ var Avatar = {
                 
                 console.log('[Avatar] HeyGenDirectSession 創建成功:', heygenDirectSession.sessionId);
                 console.log('[Avatar] Session type check:', heygenDirectSession.constructor.name);
+                
+                // 保存 HeyGenDirectSession 供測試和功能使用
+                this.heygenDirectSession = heygenDirectSession;
                 // 避免 instanceof 檢查不存在的類別
                 if (window.AI3STTS && window.AI3STTS.HeyGenDirectSessionImpl) {
                     console.log('[Avatar] Session instanceof check:', heygenDirectSession instanceof window.AI3STTS.HeyGenDirectSessionImpl);
@@ -800,6 +808,9 @@ var Avatar = {
                 
                 console.log('[Avatar] ✅ 官方 Avatar 初始化成功');
                 
+                // 監聽視頻元素載入事件，精準計算會話開始時間
+                this.setupVideoEventListeners(container);
+                
                 // 自動初始化音頻（解決瀏覽器自動播放限制）
                 if (this.player) {
                     console.log('🔊 自動初始化音頻權限...');
@@ -834,6 +845,7 @@ var Avatar = {
             }
             
             // 監聽狀態變化
+            let lastState = null;
             const checkState = () => {
                 if (!this.directSession) {
                     console.log('[Avatar] 會話已結束，停止狀態檢查');
@@ -841,7 +853,27 @@ var Avatar = {
                 }
                 
                 const state = this.directSession.getState();
-                console.log('[Avatar] Avatar 狀態:', state);
+                
+                // 只在狀態改變時記錄和處理
+                if (state !== lastState) {
+                    console.log('[Avatar] 📊 LiveKit 狀態變化:', lastState, '->', state);
+                    
+                    // 檢查是否從 connecting 變為 connected（實際連線建立）
+                    if (lastState === 'connecting' && state === 'connected' && this.sessionCreatedAt) {
+                        const oldTime = this.sessionCreatedAt;
+                        this.sessionCreatedAt = new Date();
+                        const timeDiff = this.sessionCreatedAt.getTime() - oldTime.getTime();
+                        console.log('[Avatar] 🔗 LiveKit 連線已建立，重新設置會話計時');
+                        console.log(`[Avatar] ⏱️ LiveKit 連線延遲了 ${Math.round(timeDiff / 1000)} 秒`);
+                        
+                        if (this.sessionTimeout) {
+                            const timeoutSeconds = Math.round(this.sessionTimeout / 1000);
+                            console.log(`[Avatar] 📊 會話將在 ${timeoutSeconds} 秒後超時（從 LiveKit 連線成功開始計算）`);
+                        }
+                    }
+                    
+                    lastState = state;
+                }
                 
                 switch (state) {
                     case 'connecting':
@@ -1051,6 +1083,7 @@ var Avatar = {
             if (this.directSession) {
                 await this.directSession.stop();
                 this.directSession = null;
+            this.heygenDirectSession = null;
                 console.log('[Avatar.cleanupExpiredSession] ✅ HeyGen 直接會話已停止');
             }
 
@@ -1072,6 +1105,7 @@ var Avatar = {
             console.error('[Avatar.cleanupExpiredSession] 清理會話時發生錯誤:', error);
             // 即使清理失敗，也要重置狀態
             this.directSession = null;
+            this.heygenDirectSession = null;
             this.player = null;
             this.sessionCreatedAt = null;
             this.sessionTimeout = null;
@@ -1094,6 +1128,7 @@ var Avatar = {
             if (this.directSession) {
                 await this.directSession.stop();
                 this.directSession = null;
+            this.heygenDirectSession = null;
                 console.log('✅ 直接會話已停止');
             }
 
@@ -1106,6 +1141,111 @@ var Avatar = {
         } catch (error) {
             console.error('❌ 結束對話失敗:', error);
             this.updateStatus('error', '結束對話失敗');
+        }
+    },
+
+    setupVideoEventListeners: function(container) {
+        console.log('[Avatar] 設置視頻事件監聽器...');
+        
+        // 尋找視頻元素
+        const findVideoElement = () => {
+            return container.querySelector('#heygen-video') || 
+                   container.querySelector('video') ||
+                   (this.player && this.player.videoElement);
+        };
+        
+        // 重新設置會話開始時間的函數
+        const resetSessionTime = (eventName) => {
+            if (this.sessionCreatedAt) {
+                const oldTime = this.sessionCreatedAt;
+                this.sessionCreatedAt = new Date();
+                const timeDiff = this.sessionCreatedAt.getTime() - oldTime.getTime();
+                console.log(`[Avatar] 🎯 會話計時重新設置 (${eventName}事件觸發)`);
+                console.log(`[Avatar] ⏱️ 延遲了 ${Math.round(timeDiff / 1000)} 秒，現在從實際畫面出現開始計時`);
+                
+                if (this.sessionTimeout) {
+                    const timeoutSeconds = Math.round(this.sessionTimeout / 1000);
+                    console.log(`[Avatar] 📊 會話將在 ${timeoutSeconds} 秒後超時（從現在開始計算）`);
+                }
+            }
+        };
+        
+        // 立即檢查是否已有視頻元素
+        let videoElement = findVideoElement();
+        
+        if (videoElement) {
+            this.attachVideoEventListeners(videoElement, resetSessionTime);
+        } else {
+            // 使用 MutationObserver 監聽 DOM 變化，等待視頻元素出現
+            console.log('[Avatar] 視頻元素尚未出現，監聽 DOM 變化...');
+            const observer = new MutationObserver((mutations) => {
+                for (const mutation of mutations) {
+                    if (mutation.type === 'childList') {
+                        videoElement = findVideoElement();
+                        if (videoElement) {
+                            console.log('[Avatar] 📺 視頻元素已出現，設置事件監聽器');
+                            this.attachVideoEventListeners(videoElement, resetSessionTime);
+                            observer.disconnect();
+                            break;
+                        }
+                    }
+                }
+            });
+            
+            observer.observe(container, {
+                childList: true,
+                subtree: true
+            });
+            
+            // 5 秒後停止觀察，避免無限等待
+            setTimeout(() => {
+                observer.disconnect();
+                console.log('[Avatar] ⚠️ 視頻元素監聽超時，停止 DOM 觀察');
+            }, 5000);
+        }
+    },
+
+    attachVideoEventListeners: function(videoElement, resetSessionTime) {
+        console.log('[Avatar] 📺 附加視頻事件監聽器到:', videoElement.tagName);
+        
+        // 記錄已附加的監聽器，避免重複添加
+        if (videoElement._avatarListenersAttached) {
+            console.log('[Avatar] 視頻元素已有監聽器，跳過');
+            return;
+        }
+        
+        // canplay 事件：視頻可以開始播放（已載入足夠數據）
+        const onCanPlay = () => {
+            console.log('[Avatar] 🎬 視頻 canplay 事件觸發 - 畫面準備就緒');
+            resetSessionTime('canplay');
+        };
+        
+        // loadeddata 事件：第一幀數據已載入
+        const onLoadedData = () => {
+            console.log('[Avatar] 🎞️ 視頻 loadeddata 事件觸發 - 第一幀已載入');
+            resetSessionTime('loadeddata');
+        };
+        
+        // play 事件：開始播放
+        const onPlay = () => {
+            console.log('[Avatar] ▶️ 視頻 play 事件觸發 - 開始播放');
+            resetSessionTime('play');
+        };
+        
+        // 添加事件監聽器
+        videoElement.addEventListener('canplay', onCanPlay, { once: true });
+        videoElement.addEventListener('loadeddata', onLoadedData, { once: true });
+        videoElement.addEventListener('play', onPlay, { once: true });
+        
+        // 標記已添加監聽器
+        videoElement._avatarListenersAttached = true;
+        
+        console.log('[Avatar] ✅ 視頻事件監聽器設置完成');
+        
+        // 檢查視頻是否已經處於就緒狀態
+        if (videoElement.readyState >= 3) { // HAVE_FUTURE_DATA
+            console.log('[Avatar] 🎯 視頻已處於就緒狀態，立即重新設置計時');
+            resetSessionTime('already-ready');
         }
     },
 

@@ -882,23 +882,29 @@
             TestUtils.logFunctionCall('testSendKeepalive', '發送 Keepalive');
             
             try {
-                if (!Avatar || !Avatar.directSession) {
-                    throw new Error('沒有活動的 Avatar 會話');
+                if (!Avatar || !Avatar.heygenDirectSession) {
+                    throw new Error('沒有活動的 HeyGen Direct 會話');
                 }
                 
-                const sessionId = Avatar.directSession.sessionId;
+                const sessionId = Avatar.heygenDirectSession.sessionId;
                 TestUtils.log(`📡 向會話 ${sessionId} 發送 keepalive...`);
                 
                 const response = await fetch(`${API_BASE_URL}/heygen-direct/session/${sessionId}/keepalive`, {
                     method: 'POST',
                     headers: {
-                        'x-api-key': 'test-key'
+                        'x-api-key': 'test-api-key'
                     }
                 });
                 
                 const data = await response.json();
                 if (data.success) {
                     TestUtils.log('✅ Keepalive 發送成功，計時器已重置');
+                    
+                    // 同步重置前端的會話計時
+                    if (Avatar.sessionCreatedAt) {
+                        Avatar.sessionCreatedAt = new Date();
+                        TestUtils.log('🔄 前端會話計時也已重置');
+                    }
                 } else {
                     throw new Error(data.error || '發送失敗');
                 }
