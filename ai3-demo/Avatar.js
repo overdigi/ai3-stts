@@ -28,6 +28,10 @@ var Avatar = {
     directSocket: null,
     player: null, // LiveKit Player
 
+    // 會話超時管理
+    sessionCreatedAt: null,
+    sessionTimeout: null,
+
     // 功能開關
     enableSTT: true, // 重新啟用 STT 功能
     isInitialized: false,
@@ -625,6 +629,28 @@ var Avatar = {
                 throw new Error('無法建立直接會話');
             }
 
+            // 檢查會話是否已超時
+            if (this.sessionTimeout && this.sessionCreatedAt) {
+                const now = new Date();
+                const age = now.getTime() - this.sessionCreatedAt.getTime();
+                if (age > this.sessionTimeout) {
+                    const ageSeconds = Math.round(age / 1000);
+                    const timeoutSeconds = Math.round(this.sessionTimeout / 1000);
+                    console.error(`[Avatar.speakDirectMode] 會話已超時: ${ageSeconds}秒 > ${timeoutSeconds}秒`);
+                    
+                    // 真正停止 HeyGen 會話
+                    try {
+                        console.log('[Avatar.speakDirectMode] 正在停止超時的 HeyGen 會話...');
+                        await this.cleanupExpiredSession();
+                        console.log('[Avatar.speakDirectMode] ✅ 超時會話已完全停止');
+                    } catch (stopError) {
+                        console.error('[Avatar.speakDirectMode] 停止會話時發生錯誤:', stopError);
+                    }
+                    
+                    throw new Error(`會話已超時 (${ageSeconds}秒)`);
+                }
+            }
+
             // 使用官方 SDK 播放文字（返回 Promise<void>）
             await this.directSession.speak(text);
             console.log('[Avatar.speakDirectMode] ✅ 官方 SDK 播放成功:', text);
@@ -639,7 +665,7 @@ var Avatar = {
         }
     },
 
-    createDirectSession: async function() {
+    createDirectSession: async function(options = {}) {
         try {
             console.log('[Avatar.createDirectSession] 建立 HeyGen 直接會話...');
             
@@ -654,6 +680,14 @@ var Avatar = {
             });
 
             console.log('[Avatar.createDirectSession] ✅ 官方 SDK 會話建立成功');
+
+            // 設定會話超時管理
+            this.sessionCreatedAt = new Date();
+            this.sessionTimeout = options.timeout || null; // 接受測試傳入的超時時間
+            
+            if (this.sessionTimeout) {
+                console.log(`[Avatar.createDirectSession] 設定會話超時: ${this.sessionTimeout}ms`);
+            }
             
             // 同時創建 HeyGenDirectSession 以支援新功能
             try {
@@ -765,6 +799,33 @@ var Avatar = {
                 await this.directSession.initialize(container);
                 
                 console.log('[Avatar] ✅ 官方 Avatar 初始化成功');
+                
+                // 自動初始化音頻（解決瀏覽器自動播放限制）
+                if (this.player) {
+                    console.log('🔊 自動初始化音頻權限...');
+                    if (typeof this.player.enableAudio === 'function') {
+                        try {
+                            const audioEnabled = await this.player.enableAudio();
+                            if (audioEnabled) {
+                                console.log('✅ 音頻權限初始化成功');
+                            } else {
+                                console.log('⚠️ 音頻初始化需要用戶互動');
+                            }
+                        } catch (audioError) {
+                            console.log('⚠️ 音頻初始化失敗:', audioError.message);
+                        }
+                    } else if (this.player.videoElement || this.player.audioElement) {
+                        // 備用方案：直接設置媒體元素
+                        if (this.player.videoElement) {
+                            this.player.videoElement.muted = false;
+                        }
+                        if (this.player.audioElement) {
+                            this.player.audioElement.muted = false;
+                        }
+                        console.log('✅ 音頻已啟用（透過媒體元素）');
+                    }
+                }
+                
                 this.updateStatus('ready', '準備就緒');
             } else {
                 console.warn('[Avatar] heygen-player 容器未找到，使用無容器模式');
@@ -981,6 +1042,43 @@ var Avatar = {
         }
     },
 
+    // 清理過期會話的專用方法
+    cleanupExpiredSession: async function() {
+        console.log('[Avatar.cleanupExpiredSession] 開始清理過期會話...');
+        
+        try {
+            // 停止 HeyGen 直接會話
+            if (this.directSession) {
+                await this.directSession.stop();
+                this.directSession = null;
+                console.log('[Avatar.cleanupExpiredSession] ✅ HeyGen 直接會話已停止');
+            }
+
+            // 斷開 LiveKit/Player 連接
+            if (this.player && this.player.disconnect) {
+                await this.player.disconnect();
+                this.player = null;
+                console.log('[Avatar.cleanupExpiredSession] ✅ LiveKit 連接已斷開');
+            }
+
+            // 清理超時相關狀態
+            this.sessionCreatedAt = null;
+            this.sessionTimeout = null;
+
+            // 更新狀態但不顯示成功訊息
+            this.updateStatus('ready', '準備就緒');
+            
+        } catch (error) {
+            console.error('[Avatar.cleanupExpiredSession] 清理會話時發生錯誤:', error);
+            // 即使清理失敗，也要重置狀態
+            this.directSession = null;
+            this.player = null;
+            this.sessionCreatedAt = null;
+            this.sessionTimeout = null;
+            this.updateStatus('ready', '準備就緒');
+        }
+    },
+
     stopConversation: async function() {
         console.log('結束 HeyGen 對話');
         
@@ -998,6 +1096,10 @@ var Avatar = {
                 this.directSession = null;
                 console.log('✅ 直接會話已停止');
             }
+
+            // 清理超時相關狀態
+            this.sessionCreatedAt = null;
+            this.sessionTimeout = null;
             
             this.updateStatus('ready', '對話已結束');
             console.log('✅ 直接模式對話已結束');

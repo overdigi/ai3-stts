@@ -180,9 +180,18 @@ export class HeygenDirectService {
       throw new Error('HeyGen 會話 ID 不存在');
     }
 
+    // 檢查會話是否已超時
+    const now = new Date();
+    const age = now.getTime() - session.lastActivityAt.getTime();
+    if (age > session.timeout) {
+      this.logger.warn(`會話已超時 [${sessionId}]: ${age}ms > ${session.timeout}ms`);
+      // 清理超時會話
+      await this.stopSession(sessionId, token);
+      throw new Error(`會話已超時 (${Math.round(age / 1000)}秒)`);
+    }
+
     this.logger.log(`發送語音合成請求 [${sessionId}]: ${text}`);
 
-    const now = new Date();
     session.status = 'speaking';
     session.updatedAt = now;
     session.lastActivityAt = now; // 更新最後活動時間
