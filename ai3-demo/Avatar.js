@@ -655,15 +655,116 @@ var Avatar = {
 
             console.log('[Avatar.createDirectSession] ✅ 官方 SDK 會話建立成功');
             
-            // 取得媒體容器並初始化 Avatar
+            // 同時創建 HeyGenDirectSession 以支援新功能
+            try {
+                console.log('[Avatar] 同時創建 HeyGen 直接會話以支援新功能...');
+                const heygenDirectSession = await this.client.createHeyGenDirectSession({
+                    avatarId: this.avatarId,
+                    voiceId: this.voiceId,
+                });
+                
+                console.log('[Avatar] HeyGenDirectSession 創建成功:', heygenDirectSession.sessionId);
+                console.log('[Avatar] Session type check:', heygenDirectSession.constructor.name);
+                // 避免 instanceof 檢查不存在的類別
+                if (window.AI3STTS && window.AI3STTS.HeyGenDirectSessionImpl) {
+                    console.log('[Avatar] Session instanceof check:', heygenDirectSession instanceof window.AI3STTS.HeyGenDirectSessionImpl);
+                } else {
+                    console.log('[Avatar] HeyGenDirectSessionImpl 類別未定義，跳過 instanceof 檢查');
+                }
+                
+                // 創建播放器實例
+                const container = document.getElementById('heygen-player');
+                if (container && heygenDirectSession) {
+                    console.log('[Avatar] 正在創建 HeyGenPlayer...');
+                    console.log('[Avatar] Container exists:', !!container);
+                    console.log('[Avatar] Container id:', container.id);
+                    console.log('[Avatar] HeyGenDirectSession 詳細信息:', {
+                        sessionId: heygenDirectSession.sessionId,
+                        livekitUrl: heygenDirectSession.livekitUrl,
+                        livekitToken: heygenDirectSession.livekitToken,
+                        realtimeEndpoint: heygenDirectSession.realtimeEndpoint
+                    });
+                    
+                    try {
+                        this.player = await this.client.createPlayer(container, heygenDirectSession);
+                        console.log('[Avatar] ✅ HeyGenPlayer 創建成功，類型:', this.player.constructor.name);
+                        console.log('[Avatar] HeyGenPlayer 可用方法:', Object.getOwnPropertyNames(Object.getPrototypeOf(this.player)));
+                        console.log('[Avatar] enableAudio 方法存在:', typeof this.player.enableAudio === 'function');
+                        console.log('[Avatar] disableAudio 方法存在:', typeof this.player.disableAudio === 'function');
+                        console.log('[Avatar] setVolume 方法存在:', typeof this.player.setVolume === 'function');
+                        console.log('[Avatar] pause 方法存在:', typeof this.player.pause === 'function');
+                        console.log('[Avatar] resume 方法存在:', typeof this.player.resume === 'function');
+                        
+                        // 為相容性添加 mute/unmute 別名（如果不存在）
+                        if (!this.player.mute && this.player.disableAudio) {
+                            this.player.mute = this.player.disableAudio.bind(this.player);
+                            console.log('[Avatar] 添加 mute 方法別名');
+                        }
+                        if (!this.player.unmute && this.player.enableAudio) {
+                            this.player.unmute = this.player.enableAudio.bind(this.player);
+                            console.log('[Avatar] 添加 unmute 方法別名');
+                        }
+                    } catch (createPlayerError) {
+                        console.error('[Avatar] createPlayer 方法失敗:', createPlayerError);
+                        console.error('[Avatar] createPlayer 錯誤堆疊:', createPlayerError.stack);
+                        
+                        // 手動創建一個包含必要方法的 player 物件
+                        console.log('[Avatar] 嘗試手動創建 player 物件...');
+                        const videoElement = container.querySelector('#heygen-video') || container.querySelector('video');
+                        if (videoElement) {
+                            this.player = {
+                                videoElement: videoElement,
+                                enableAudio: () => {
+                                    videoElement.muted = false;
+                                    console.log('[Avatar] 音頻已啟用（手動實現）');
+                                },
+                                disableAudio: () => {
+                                    videoElement.muted = true;
+                                    console.log('[Avatar] 音頻已禁用（手動實現）');
+                                },
+                                // 為相容性添加 mute/unmute 別名
+                                mute: function() {
+                                    this.disableAudio();
+                                },
+                                unmute: function() {
+                                    this.enableAudio();
+                                },
+                                setVolume: (volume) => {
+                                    videoElement.volume = Math.max(0, Math.min(1, volume));
+                                    console.log('[Avatar] 音量設置為:', videoElement.volume);
+                                },
+                                pause: () => {
+                                    videoElement.pause();
+                                    console.log('[Avatar] 播放已暫停（手動實現）');
+                                },
+                                resume: () => {
+                                    videoElement.play().catch(e => console.warn('播放失败:', e));
+                                    console.log('[Avatar] 播放已恢復（手動實現）');
+                                },
+                                disconnect: () => {
+                                    console.log('[Avatar] 斷開連接（手動實現）');
+                                }
+                            };
+                            console.log('[Avatar] ✅ 手動創建的 player 物件已就緒');
+                        }
+                    }
+                } else {
+                    console.warn('[Avatar] 無法創建 HeyGenPlayer: container=', !!container, 'session=', !!heygenDirectSession);
+                }
+            } catch (error) {
+                console.error('[Avatar] 創建 HeyGenPlayer 失敗（不影響官方 SDK 功能）:', error);
+                console.error('[Avatar] 錯誤堆疊:', error.stack);
+            }
+            
+            // 取得媒體容器並初始化官方 Avatar
             const container = document.getElementById('heygen-player');
             if (container) {
-                console.log('[Avatar] 初始化 Avatar 到容器...');
+                console.log('[Avatar] 初始化官方 Avatar 到容器...');
                 this.updateStatus('initializing', '初始化 Avatar...');
                 
                 await this.directSession.initialize(container);
                 
-                console.log('[Avatar] ✅ Avatar 初始化成功');
+                console.log('[Avatar] ✅ 官方 Avatar 初始化成功');
                 this.updateStatus('ready', '準備就緒');
             } else {
                 console.warn('[Avatar] heygen-player 容器未找到，使用無容器模式');
@@ -844,6 +945,32 @@ var Avatar = {
             if (!this.directSession) {
                 console.log('建立新的直接會話...');
                 await this.createDirectSession();
+            }
+            
+            // 自動初始化音頻（解決瀏覽器自動播放限制）
+            if (this.player) {
+                console.log('🔊 自動初始化音頻權限...');
+                if (typeof this.player.enableAudio === 'function') {
+                    try {
+                        const audioEnabled = await this.player.enableAudio();
+                        if (audioEnabled) {
+                            console.log('✅ 音頻權限初始化成功');
+                        } else {
+                            console.log('⚠️ 音頻初始化需要用戶互動');
+                        }
+                    } catch (audioError) {
+                        console.log('⚠️ 音頻初始化失敗:', audioError.message);
+                    }
+                } else if (this.player.videoElement || this.player.audioElement) {
+                    // 備用方案：直接設置媒體元素
+                    if (this.player.videoElement) {
+                        this.player.videoElement.muted = false;
+                    }
+                    if (this.player.audioElement) {
+                        this.player.audioElement.muted = false;
+                    }
+                    console.log('✅ 音頻已啟用（透過媒體元素）');
+                }
             }
             
             this.updateStatus('ready', '對話已開始');

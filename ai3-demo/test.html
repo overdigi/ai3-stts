@@ -381,8 +381,82 @@
                         </button>
                     </div>
 
+                    <!-- 新功能測試區域 -->
                     <div class="control-group">
-                        <h3>日誌控制</h3>
+                        <h3>🆕 斷線時間管理</h3>
+                        <input type="number" id="timeout-input" placeholder="超時（毫秒）" value="600000" min="60000" style="margin: 2px; padding: 8px; width: 120px; border: 1px solid #ddd; border-radius: 4px;">
+                        <button class="test-btn test-btn-primary" onclick="testCreateSessionWithTimeout()">
+                            建立會話（自定義超時）
+                        </button>
+                        <button class="test-btn test-btn-secondary" onclick="testSendKeepalive()">
+                            發送 Keepalive
+                        </button>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>🆕 聲音控制</h3>
+                        <button class="test-btn test-btn-success" onclick="testEnableAudio()" title="手動初始化音頻（開始對話時會自動執行）">
+                            手動初始化音頻
+                        </button>
+                        <button class="test-btn test-btn-secondary" onclick="testMuteAudio()" title="將音頻設為靜音">
+                            靜音
+                        </button>
+                        <button class="test-btn test-btn-secondary" onclick="testUnmuteAudio()" title="取消靜音狀態">
+                            取消靜音
+                        </button>
+                        <br>
+                        <label style="margin: 5px;">音量：</label>
+                        <input type="range" id="volume-slider" min="0" max="100" value="70" onchange="testSetVolume(this.value)" style="margin: 5px; width: 120px;">
+                        <span id="volume-value">70%</span>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>🆕 播放控制</h3>
+                        <button class="test-btn test-btn-secondary" onclick="testPausePlayback()">
+                            暫停播放
+                        </button>
+                        <button class="test-btn test-btn-primary" onclick="testResumePlayback()">
+                            恢復播放
+                        </button>
+                        <button class="test-btn test-btn-secondary" onclick="testGetPlaybackState()">
+                            檢查播放狀態
+                        </button>
+                        <button class="test-btn test-btn-success" onclick="testSpeakFunction()">
+                            測試語音合成
+                        </button>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>🆕 STT 解耦</h3>
+                        <button class="test-btn test-btn-success" onclick="testCreateWithSTT()">
+                            重新初始化（啟用 STT）
+                        </button>
+                        <button class="test-btn test-btn-secondary" onclick="testCreateWithoutSTT()">
+                            重新初始化（停用 STT）
+                        </button>
+                        <button class="test-btn test-btn-primary" onclick="testToggleSTT()">
+                            切換 STT 狀態
+                        </button>
+                        <button class="test-btn test-btn-secondary" onclick="testCheckSTTStatus()">
+                            檢查 STT 狀態
+                        </button>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>🔍 診斷工具</h3>
+                        <button class="test-btn test-btn-primary" onclick="testDiagnoseAvatar()">
+                            診斷 Avatar 狀態
+                        </button>
+                        <button class="test-btn test-btn-secondary" onclick="testCheckVideoElement()">
+                            檢查 Video 元素
+                        </button>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>🔄 系統控制</h3>
+                        <button class="test-btn test-btn-primary" onclick="location.reload()">
+                            重新載入頁面
+                        </button>
                         <button class="test-btn test-btn-secondary" onclick="TestUtils.clearLog()">
                             清除日誌
                         </button>
@@ -757,6 +831,599 @@
                 });
             } else {
                 TestUtils.log('❌ 沒有活動的會話或相關方法未找到');
+            }
+        }
+
+        // ======== 新功能測試函數 ========
+
+        // 1. 斷線時間管理測試
+        async function testCreateSessionWithTimeout() {
+            TestUtils.logFunctionCall('testCreateSessionWithTimeout', '建立會話（自定義超時）');
+            
+            try {
+                const timeout = parseInt(document.getElementById('timeout-input').value) || 600000;
+                TestUtils.log(`⏰ 設定超時時間: ${timeout}ms (${timeout/1000/60}分鐘)`);
+                
+                // 直接調用後端 API
+                const response = await fetch(`${API_BASE_URL}/heygen-direct/session`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': 'test-key'
+                    },
+                    body: JSON.stringify({
+                        avatarId: 'bc13dd17488a44ffa46f0ccb26ba613a',
+                        voiceId: '79a125e8337c41b7b9d7a1a7d41aae88',
+                        timeout: timeout
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    TestUtils.log('✅ 自定義超時會話建立成功:', {
+                        sessionId: data.sessionId,
+                        timeout: `${timeout}ms`
+                    });
+                    
+                    // 也嘗試透過 Avatar 建立會話
+                    if (Avatar && Avatar.createDirectSession) {
+                        TestUtils.log('🔄 同時透過 Avatar SDK 建立會話...');
+                        Avatar.createDirectSession({timeout: timeout});
+                    }
+                } else {
+                    throw new Error(data.error || 'API 回應錯誤');
+                }
+            } catch (error) {
+                TestUtils.log('❌ 建立自定義超時會話失敗:', error.message);
+            }
+        }
+        
+        async function testSendKeepalive() {
+            TestUtils.logFunctionCall('testSendKeepalive', '發送 Keepalive');
+            
+            try {
+                if (!Avatar || !Avatar.directSession) {
+                    throw new Error('沒有活動的 Avatar 會話');
+                }
+                
+                const sessionId = Avatar.directSession.sessionId;
+                TestUtils.log(`📡 向會話 ${sessionId} 發送 keepalive...`);
+                
+                const response = await fetch(`${API_BASE_URL}/heygen-direct/session/${sessionId}/keepalive`, {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': 'test-key'
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    TestUtils.log('✅ Keepalive 發送成功，計時器已重置');
+                } else {
+                    throw new Error(data.error || '發送失敗');
+                }
+            } catch (error) {
+                TestUtils.log('❌ 發送 Keepalive 失敗:', error.message);
+            }
+        }
+
+        // 2. 聲音控制測試
+        async function testEnableAudio() {
+            TestUtils.logFunctionCall('testEnableAudio', '初始化音頻（解決瀏覽器自動播放限制）');
+            
+            try {
+                // 檢查 Avatar 狀態
+                if (!Avatar) {
+                    throw new Error('Avatar 對象未載入');
+                }
+                
+                // 詳細檢查 Avatar.player 狀態
+                TestUtils.log('🔍 檢查 Avatar.player 狀態:');
+                TestUtils.log(`- Avatar.player 存在: ${!!Avatar.player}`);
+                if (Avatar.player) {
+                    TestUtils.log(`- Avatar.player 類型: ${typeof Avatar.player}`);
+                    TestUtils.log(`- 有 enableAudio 方法: ${typeof Avatar.player.enableAudio === 'function'}`);
+                    TestUtils.log(`- Avatar.player 建構子: ${Avatar.player.constructor.name}`);
+                }
+                
+                // 先檢查是否有新的 HeyGenPlayer 實例
+                if (Avatar.player && typeof Avatar.player.enableAudio === 'function') {
+                    TestUtils.log('✅ 找到 HeyGenPlayer，使用新 API...');
+                    const success = await Avatar.player.enableAudio();
+                    if (success) {
+                        TestUtils.log('✅ 音頻權限初始化成功（可以自動播放音頻）');
+                    } else {
+                        TestUtils.log('⚠️ 音頻初始化需要用戶互動（瀏覽器自動播放限制）');
+                        TestUtils.log('💡 請在用戶點擊按鈕時呼叫此功能');
+                    }
+                    return;
+                }
+                
+                // 備用方案：直接操作 video 元素
+                TestUtils.log('⚠️ 找不到新的 HeyGenPlayer API，使用直接操作 video 元素...');
+                const videoElement = document.getElementById('heygen-video');
+                if (videoElement) {
+                    TestUtils.log(`📺 Video 元素狀態: paused=${videoElement.paused}, muted=${videoElement.muted}`);
+                    videoElement.muted = false;
+                    try {
+                        if (videoElement.paused) {
+                            await videoElement.play();
+                        }
+                        TestUtils.log('✅ 透過直接操作 video 元素啟用聲音成功');
+                    } catch (e) {
+                        TestUtils.log('⚠️ 需要用戶互動才能啟用聲音:', e.message);
+                    }
+                } else {
+                    throw new Error('找不到 video 元素');
+                }
+            } catch (error) {
+                TestUtils.log('❌ 啟用聲音失敗:', error.message);
+                TestUtils.log('💡 建議：先點擊「開始對話」按鈕初始化 Avatar');
+            }
+        }
+        
+        function testMuteAudio() {
+            TestUtils.logFunctionCall('testMuteAudio', '靜音');
+            
+            try {
+                if (!Avatar) {
+                    throw new Error('Avatar 對象未載入');
+                }
+                
+                if (!Avatar.player) {
+                    TestUtils.log('⚠️ Avatar.player 未找到，嘗試直接操作 video 元素...');
+                    const videoElement = document.getElementById('heygen-video');
+                    if (videoElement) {
+                        videoElement.muted = true;
+                        TestUtils.log('✅ 透過直接操作 video 元素靜音成功');
+                        return;
+                    } else {
+                        throw new Error('找不到 video 元素');
+                    }
+                }
+                
+                // 檢查 mute 方法是否存在
+                if (typeof Avatar.player.mute === 'function') {
+                    Avatar.player.mute();
+                    TestUtils.log('✅ 已靜音');
+                } else if (typeof Avatar.player.disableAudio === 'function') {
+                    Avatar.player.disableAudio();
+                    TestUtils.log('✅ 已靜音 (使用 disableAudio)');
+                } else if (Avatar.player.videoElement || Avatar.player.audioElement) {
+                    // 直接控制媒體元素
+                    let muted = false;
+                    if (Avatar.player.videoElement) {
+                        Avatar.player.videoElement.muted = true;
+                        muted = true;
+                        TestUtils.log('✅ Video 元素已靜音');
+                    }
+                    if (Avatar.player.audioElement) {
+                        Avatar.player.audioElement.muted = true;
+                        muted = true;
+                        TestUtils.log('✅ Audio 元素已靜音');
+                    }
+                    if (muted) {
+                        TestUtils.log('✅ 已靜音 (透過媒體元素)');
+                    }
+                } else {
+                    TestUtils.log('⚠️ player 物件沒有 mute 方法或媒體元素');
+                    TestUtils.log('可用屬性:', Object.keys(Avatar.player));
+                }
+            } catch (error) {
+                TestUtils.log('❌ 靜音失敗:', error.message);
+            }
+        }
+        
+        function testUnmuteAudio() {
+            TestUtils.logFunctionCall('testUnmuteAudio', '取消靜音');
+            
+            try {
+                if (!Avatar) {
+                    throw new Error('Avatar 對象未載入');
+                }
+                
+                if (!Avatar.player) {
+                    TestUtils.log('⚠️ Avatar.player 未找到，嘗試直接操作 video 元素...');
+                    const videoElement = document.getElementById('heygen-video');
+                    if (videoElement) {
+                        videoElement.muted = false;
+                        TestUtils.log('✅ 透過直接操作 video 元素取消靜音成功');
+                        return;
+                    } else {
+                        throw new Error('找不到 video 元素');
+                    }
+                }
+                
+                // 檢查 unmute 方法是否存在
+                if (typeof Avatar.player.unmute === 'function') {
+                    Avatar.player.unmute();
+                    TestUtils.log('✅ 已取消靜音');
+                } else if (typeof Avatar.player.enableAudio === 'function') {
+                    Avatar.player.enableAudio();
+                    TestUtils.log('✅ 已取消靜音 (使用 enableAudio)');
+                } else if (Avatar.player.videoElement || Avatar.player.audioElement) {
+                    // 直接控制媒體元素
+                    let unmuted = false;
+                    if (Avatar.player.videoElement) {
+                        Avatar.player.videoElement.muted = false;
+                        unmuted = true;
+                        TestUtils.log('✅ Video 元素已取消靜音');
+                    }
+                    if (Avatar.player.audioElement) {
+                        Avatar.player.audioElement.muted = false;
+                        unmuted = true;
+                        TestUtils.log('✅ Audio 元素已取消靜音');
+                    }
+                    if (unmuted) {
+                        TestUtils.log('✅ 已取消靜音 (透過媒體元素)');
+                    }
+                } else {
+                    TestUtils.log('⚠️ player 物件沒有 unmute 方法或媒體元素');
+                    TestUtils.log('可用屬性:', Object.keys(Avatar.player));
+                }
+            } catch (error) {
+                TestUtils.log('❌ 取消靜音失敗:', error.message);
+            }
+        }
+        
+        function testSetVolume(value) {
+            TestUtils.logFunctionCall('testSetVolume', `設定音量: ${value}%`);
+            
+            try {
+                if (!Avatar) {
+                    throw new Error('Avatar 對象未載入');
+                }
+                
+                const volume = value / 100;
+                
+                if (!Avatar.player) {
+                    TestUtils.log('⚠️ Avatar.player 未找到，嘗試直接操作 video 元素...');
+                    const videoElement = document.getElementById('heygen-video');
+                    if (videoElement) {
+                        videoElement.volume = volume;
+                        document.getElementById('volume-value').textContent = `${value}%`;
+                        TestUtils.log(`✅ 透過直接操作 video 元素設定音量為 ${value}%`);
+                        return;
+                    } else {
+                        throw new Error('找不到 video 元素');
+                    }
+                }
+                
+                // 檢查 setVolume 方法是否存在
+                if (typeof Avatar.player.setVolume === 'function') {
+                    Avatar.player.setVolume(volume);
+                    document.getElementById('volume-value').textContent = `${value}%`;
+                    TestUtils.log(`✅ 音量已設定為 ${value}%`);
+                } else if (Avatar.player.videoElement || Avatar.player.audioElement) {
+                    // 直接控制媒體元素
+                    if (Avatar.player.videoElement) {
+                        Avatar.player.videoElement.volume = volume;
+                        TestUtils.log(`✅ Video 元素音量已設定為 ${value}%`);
+                    }
+                    if (Avatar.player.audioElement) {
+                        Avatar.player.audioElement.volume = volume;
+                        TestUtils.log(`✅ Audio 元素音量已設定為 ${value}%`);
+                    }
+                    document.getElementById('volume-value').textContent = `${value}%`;
+                    TestUtils.log(`✅ 音量已設定為 ${value}% (透過媒體元素)`);
+                } else {
+                    TestUtils.log('⚠️ player 物件沒有 setVolume 方法或媒體元素');
+                    TestUtils.log('可用屬性:', Object.keys(Avatar.player));
+                }
+            } catch (error) {
+                TestUtils.log('❌ 設定音量失敗:', error.message);
+            }
+        }
+
+        // 3. 播放控制測試
+        function testPausePlayback() {
+            TestUtils.logFunctionCall('testPausePlayback', '暫停播放');
+            
+            try {
+                if (!Avatar) {
+                    throw new Error('Avatar 對象未載入');
+                }
+                
+                if (!Avatar.player) {
+                    TestUtils.log('⚠️ Avatar.player 未找到，嘗試直接操作 video 元素...');
+                    const videoElement = document.getElementById('heygen-video');
+                    if (videoElement && !videoElement.paused) {
+                        videoElement.pause();
+                        TestUtils.log('✅ 透過直接操作 video 元素暫停成功');
+                        return;
+                    } else if (videoElement && videoElement.paused) {
+                        TestUtils.log('ℹ️ Video 元素已經處於暫停狀態');
+                        return;
+                    } else {
+                        throw new Error('找不到 video 元素');
+                    }
+                }
+                
+                Avatar.player.pause();
+                TestUtils.log('✅ 播放已暫停');
+            } catch (error) {
+                TestUtils.log('❌ 暫停播放失敗:', error.message);
+            }
+        }
+        
+        async function testResumePlayback() {
+            TestUtils.logFunctionCall('testResumePlayback', '恢復播放');
+            
+            try {
+                if (!Avatar) {
+                    throw new Error('Avatar 對象未載入');
+                }
+                
+                if (!Avatar.player) {
+                    TestUtils.log('⚠️ Avatar.player 未找到，嘗試直接操作 video 元素...');
+                    const videoElement = document.getElementById('heygen-video');
+                    if (videoElement && videoElement.paused) {
+                        try {
+                            await videoElement.play();
+                            TestUtils.log('✅ 透過直接操作 video 元素恢復播放成功');
+                            return;
+                        } catch (e) {
+                            TestUtils.log('⚠️ 恢復播放需要用戶互動:', e.message);
+                            return;
+                        }
+                    } else if (videoElement && !videoElement.paused) {
+                        TestUtils.log('ℹ️ Video 元素已經在播放中');
+                        return;
+                    } else {
+                        throw new Error('找不到 video 元素');
+                    }
+                }
+                
+                await Avatar.player.resume();
+                TestUtils.log('✅ 播放已恢復');
+            } catch (error) {
+                TestUtils.log('❌ 恢復播放失敗:', error.message);
+            }
+        }
+        
+        function testGetPlaybackState() {
+            TestUtils.logFunctionCall('testGetPlaybackState', '檢查播放狀態');
+            
+            try {
+                if (!Avatar) {
+                    throw new Error('Avatar 對象未載入');
+                }
+                
+                if (!Avatar.player) {
+                    TestUtils.log('⚠️ Avatar.player 未找到，嘗試直接檢查 video 元素...');
+                    const videoElement = document.getElementById('heygen-video');
+                    if (videoElement) {
+                        const state = videoElement.paused ? 'paused' : 'playing';
+                        const volume = Math.round(videoElement.volume * 100);
+                        TestUtils.log('📊 Video 元素狀態:', {
+                            state: state,
+                            paused: videoElement.paused,
+                            muted: videoElement.muted,
+                            volume: `${volume}%`,
+                            currentTime: videoElement.currentTime.toFixed(2) + 's'
+                        });
+                        return;
+                    } else {
+                        throw new Error('找不到 video 元素');
+                    }
+                }
+                
+                const state = Avatar.player.getPlaybackState();
+                const isPlaying = Avatar.player.isPlaying();
+                const isMuted = Avatar.player.isMuted();
+                const volume = Avatar.player.getVolume();
+                
+                TestUtils.log('📊 播放狀態:', {
+                    state: state,
+                    isPlaying: isPlaying,
+                    isMuted: isMuted,
+                    volume: `${(volume * 100).toFixed(0)}%`
+                });
+            } catch (error) {
+                TestUtils.log('❌ 檢查播放狀態失敗:', error.message);
+            }
+        }
+        
+        async function testSpeakFunction() {
+            TestUtils.logFunctionCall('testSpeakFunction', '測試語音合成');
+            
+            try {
+                if (!Avatar || !Avatar.directSession) {
+                    throw new Error('沒有活動的 Avatar 會話');
+                }
+                
+                const testText = '您好！這是 AI3-STTS 新功能測試。正在測試語音合成功能。';
+                TestUtils.log(`🗣️ 發送語音合成: "${testText}"`);
+                
+                const result = await Avatar.directSession.speak(testText);
+                if (result.success) {
+                    TestUtils.log('✅ 語音合成請求成功');
+                } else {
+                    throw new Error(result.error || '語音合成失敗');
+                }
+            } catch (error) {
+                TestUtils.log('❌ 測試語音合成失敗:', error.message);
+            }
+        }
+
+        // 4. STT 解耦測試
+        function testCreateWithSTT() {
+            TestUtils.logFunctionCall('testCreateWithSTT', '重新初始化（啟用 STT）');
+            
+            try {
+                if (Avatar && Avatar.client) {
+                    Avatar.client.setSTTEnabled(true);
+                    TestUtils.log('✅ STT 已啟用');
+                } else {
+                    TestUtils.log('⚠️ 找不到 Avatar.client，將重新載入頁面');
+                    // 可以在此處重新初始化 Avatar，或者重新載入頁面
+                    location.reload();
+                }
+            } catch (error) {
+                TestUtils.log('❌ 啟用 STT 失敗:', error.message);
+            }
+        }
+        
+        function testCreateWithoutSTT() {
+            TestUtils.logFunctionCall('testCreateWithoutSTT', '重新初始化（停用 STT）');
+            
+            try {
+                if (Avatar && Avatar.client) {
+                    Avatar.client.setSTTEnabled(false);
+                    TestUtils.log('✅ STT 已停用');
+                } else {
+                    TestUtils.log('⚠️ 找不到 Avatar.client，將重新載入頁面');
+                    location.reload();
+                }
+            } catch (error) {
+                TestUtils.log('❌ 停用 STT 失敗:', error.message);
+            }
+        }
+        
+        function testToggleSTT() {
+            TestUtils.logFunctionCall('testToggleSTT', '切換 STT 狀態');
+            
+            try {
+                if (!Avatar || !Avatar.client) {
+                    throw new Error('沒有 Avatar.client 實例');
+                }
+                
+                const currentStatus = Avatar.client.isSTTEnabled();
+                Avatar.client.setSTTEnabled(!currentStatus);
+                TestUtils.log(`✅ STT 狀態已切換為: ${!currentStatus ? '啟用' : '停用'}`);
+            } catch (error) {
+                TestUtils.log('❌ 切換 STT 狀態失敗:', error.message);
+            }
+        }
+        
+        function testCheckSTTStatus() {
+            TestUtils.logFunctionCall('testCheckSTTStatus', '檢查 STT 狀態');
+            
+            try {
+                if (!Avatar || !Avatar.client) {
+                    throw new Error('沒有 Avatar.client 實例');
+                }
+                
+                const enabled = Avatar.client.isSTTEnabled();
+                TestUtils.log(`📊 STT 狀態: ${enabled ? '✅ 已啟用' : '❌ 已停用'}`);
+                
+                // 如果啟用，嘗試測試 STT 功能
+                if (enabled) {
+                    TestUtils.log('🔍 STT 已啟用，可以使用錄音功能');
+                } else {
+                    TestUtils.log('⚠️ STT 已停用，錄音功能將無法使用');
+                }
+            } catch (error) {
+                TestUtils.log('❌ 檢查 STT 狀態失敗:', error.message);
+            }
+        }
+
+        // ======== 診斷工具 ========
+        
+        function testDiagnoseAvatar() {
+            TestUtils.logFunctionCall('testDiagnoseAvatar', '診斷 Avatar 狀態');
+            
+            try {
+                if (!Avatar) {
+                    TestUtils.log('❌ Avatar 對象不存在');
+                    return;
+                }
+                
+                TestUtils.log('📊 Avatar 完整狀態診斷:');
+                TestUtils.log('=== 基本屬性 ===');
+                TestUtils.log(`- isInitialized: ${Avatar.isInitialized}`);
+                TestUtils.log(`- avatarId: ${Avatar.avatarId}`);
+                TestUtils.log(`- voiceId: ${Avatar.voiceId}`);
+                TestUtils.log(`- enableSTT: ${Avatar.enableSTT}`);
+                
+                TestUtils.log('=== 客戶端狀態 ===');
+                TestUtils.log(`- client 存在: ${!!Avatar.client}`);
+                if (Avatar.client) {
+                    TestUtils.log(`- client 類型: ${typeof Avatar.client}`);
+                    TestUtils.log(`- client 建構子: ${Avatar.client.constructor.name}`);
+                }
+                
+                TestUtils.log('=== 會話狀態 ===');
+                TestUtils.log(`- directSession 存在: ${!!Avatar.directSession}`);
+                if (Avatar.directSession) {
+                    TestUtils.log(`- directSession 類型: ${typeof Avatar.directSession}`);
+                    TestUtils.log(`- directSession 建構子: ${Avatar.directSession.constructor.name}`);
+                    if (Avatar.directSession.sessionId) {
+                        TestUtils.log(`- sessionId: ${Avatar.directSession.sessionId}`);
+                    }
+                    if (Avatar.directSession.getState) {
+                        TestUtils.log(`- 會話狀態: ${Avatar.directSession.getState()}`);
+                    }
+                }
+                
+                TestUtils.log('=== 播放器狀態 ===');
+                TestUtils.log(`- player 存在: ${!!Avatar.player}`);
+                if (Avatar.player) {
+                    TestUtils.log(`- player 類型: ${typeof Avatar.player}`);
+                    TestUtils.log(`- player 建構子: ${Avatar.player.constructor.name}`);
+                    
+                    const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(Avatar.player));
+                    TestUtils.log(`- 可用方法數量: ${methods.length}`);
+                    TestUtils.log(`- 關鍵方法: ${methods.filter(m => ['enableAudio', 'setVolume', 'mute', 'pause'].includes(m)).join(', ')}`);
+                    
+                    // 檢查新功能方法
+                    const newFeatures = ['enableAudio', 'setVolume', 'mute', 'unmute', 'pause', 'resume', 'getPlaybackState'];
+                    TestUtils.log('- 新功能支援:');
+                    newFeatures.forEach(method => {
+                        TestUtils.log(`  ${method}: ${typeof Avatar.player[method] === 'function' ? '✅' : '❌'}`);
+                    });
+                }
+                
+                TestUtils.log('=== STT 狀態 ===');
+                TestUtils.log(`- sttSession 存在: ${!!Avatar.sttSession}`);
+                TestUtils.log(`- isRecording: ${Avatar.isRecording}`);
+                
+            } catch (error) {
+                TestUtils.log('❌ 診斷失敗:', error.message);
+            }
+        }
+        
+        function testCheckVideoElement() {
+            TestUtils.logFunctionCall('testCheckVideoElement', '檢查 Video 元素');
+            
+            try {
+                const videoElement = document.getElementById('heygen-video');
+                if (!videoElement) {
+                    TestUtils.log('❌ 找不到 heygen-video 元素');
+                    return;
+                }
+                
+                TestUtils.log('📺 Video 元素詳細狀態:');
+                TestUtils.log(`- 元素存在: ✅`);
+                TestUtils.log(`- 標籤類型: ${videoElement.tagName}`);
+                TestUtils.log(`- 是否暫停: ${videoElement.paused}`);
+                TestUtils.log(`- 是否靜音: ${videoElement.muted}`);
+                TestUtils.log(`- 音量: ${Math.round(videoElement.volume * 100)}%`);
+                TestUtils.log(`- 播放時間: ${videoElement.currentTime.toFixed(2)}s`);
+                TestUtils.log(`- 總時長: ${videoElement.duration ? videoElement.duration.toFixed(2) + 's' : '未知'}`);
+                TestUtils.log(`- 播放速度: ${videoElement.playbackRate}`);
+                TestUtils.log(`- 自動播放: ${videoElement.autoplay}`);
+                TestUtils.log(`- 迴圈播放: ${videoElement.loop}`);
+                TestUtils.log(`- 控制按鈕: ${videoElement.controls}`);
+                TestUtils.log(`- 可見性: ${videoElement.style.display || '預設'}`);
+                TestUtils.log(`- 尺寸: ${videoElement.offsetWidth} x ${videoElement.offsetHeight}`);
+                
+                if (videoElement.src || videoElement.srcObject) {
+                    TestUtils.log(`- 來源: ${videoElement.src ? 'src' : 'srcObject'}`);
+                    if (videoElement.srcObject) {
+                        TestUtils.log(`- srcObject 類型: ${videoElement.srcObject.constructor.name}`);
+                    }
+                }
+                
+                // 測試基本控制
+                TestUtils.log('🔧 測試基本控制能力:');
+                TestUtils.log(`- 可暫停: ${typeof videoElement.pause === 'function' ? '✅' : '❌'}`);
+                TestUtils.log(`- 可播放: ${typeof videoElement.play === 'function' ? '✅' : '❌'}`);
+                TestUtils.log(`- 支援音量控制: ✅`);
+                TestUtils.log(`- 支援靜音控制: ✅`);
+                
+            } catch (error) {
+                TestUtils.log('❌ 檢查 Video 元素失敗:', error.message);
             }
         }
     </script>

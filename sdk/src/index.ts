@@ -11,6 +11,7 @@ declare global {
 export interface AI3STTSConfig {
   apiUrl: string;
   apiKey?: string;
+  enableSTT?: boolean; // 是否啟用內建 STT，預設為 true
 }
 
 export interface STTResult {
@@ -65,6 +66,7 @@ export class HeyGenPlayer {
   private audioElement: HTMLAudioElement | null = null;
   private isConnected: boolean = false;
   private realtimeEndpoint?: string;
+  private playbackState: 'playing' | 'paused' | 'stopped' = 'stopped';
 
   constructor(options: HeyGenPlayerOptions) {
     this.container = options.container;
@@ -289,6 +291,147 @@ export class HeyGenPlayer {
   isActive(): boolean {
     return this.isConnected;
   }
+
+  // 聲音控制功能
+  async enableAudio(): Promise<boolean> {
+    if (!this.videoElement && !this.audioElement) {
+      console.warn('[HeyGenPlayer] 沒有可用的媒體元素');
+      return false;
+    }
+
+    try {
+      // 優先使用 video element
+      const mediaElement = this.videoElement || this.audioElement;
+      if (!mediaElement) return false;
+
+      mediaElement.muted = false;
+      
+      // 嘗試播放
+      if (mediaElement.paused) {
+        await mediaElement.play();
+      }
+      
+      console.log('[HeyGenPlayer] 聲音已啟用');
+      return true;
+    } catch (error) {
+      console.warn('[HeyGenPlayer] 自動播放失敗，需要用戶互動:', error);
+      // 智能降級：靜音播放
+      try {
+        const mediaElement = this.videoElement || this.audioElement;
+        if (mediaElement) {
+          mediaElement.muted = true;
+          await mediaElement.play();
+          console.log('[HeyGenPlayer] 降級為靜音播放，請手動開啟聲音');
+        }
+      } catch (e) {
+        console.error('[HeyGenPlayer] 播放完全失敗:', e);
+      }
+      return false;
+    }
+  }
+
+  setVolume(volume: number): void {
+    const clampedVolume = Math.max(0, Math.min(1, volume));
+    
+    if (this.videoElement) {
+      this.videoElement.volume = clampedVolume;
+    }
+    if (this.audioElement) {
+      this.audioElement.volume = clampedVolume;
+    }
+    
+    console.log(`[HeyGenPlayer] 音量設定為: ${(clampedVolume * 100).toFixed(0)}%`);
+  }
+
+  getVolume(): number {
+    if (this.videoElement) {
+      return this.videoElement.volume;
+    }
+    if (this.audioElement) {
+      return this.audioElement.volume;
+    }
+    return 1;
+  }
+
+  mute(): void {
+    if (this.videoElement) {
+      this.videoElement.muted = true;
+    }
+    if (this.audioElement) {
+      this.audioElement.muted = true;
+    }
+    console.log('[HeyGenPlayer] 已靜音');
+  }
+
+  unmute(): void {
+    if (this.videoElement) {
+      this.videoElement.muted = false;
+    }
+    if (this.audioElement) {
+      this.audioElement.muted = false;
+    }
+    console.log('[HeyGenPlayer] 已取消靜音');
+  }
+
+  isMuted(): boolean {
+    if (this.videoElement) {
+      return this.videoElement.muted;
+    }
+    if (this.audioElement) {
+      return this.audioElement.muted;
+    }
+    return false;
+  }
+
+  // 播放控制功能
+  pause(): void {
+    if (this.videoElement && !this.videoElement.paused) {
+      this.videoElement.pause();
+      this.playbackState = 'paused';
+    }
+    if (this.audioElement && !this.audioElement.paused) {
+      this.audioElement.pause();
+      this.playbackState = 'paused';
+    }
+    console.log('[HeyGenPlayer] 已暫停');
+  }
+
+  async resume(): Promise<void> {
+    try {
+      if (this.videoElement && this.videoElement.paused) {
+        await this.videoElement.play();
+        this.playbackState = 'playing';
+      }
+      if (this.audioElement && this.audioElement.paused) {
+        await this.audioElement.play();
+        this.playbackState = 'playing';
+      }
+      console.log('[HeyGenPlayer] 已恢復播放');
+    } catch (error) {
+      console.error('[HeyGenPlayer] 恢復播放失敗:', error);
+      throw error;
+    }
+  }
+
+  getPlaybackState(): 'playing' | 'paused' | 'stopped' {
+    if (this.videoElement) {
+      if (this.videoElement.paused) {
+        return this.videoElement.currentTime > 0 ? 'paused' : 'stopped';
+      }
+      return 'playing';
+    }
+    if (this.audioElement) {
+      if (this.audioElement.paused) {
+        return this.audioElement.currentTime > 0 ? 'paused' : 'stopped';
+      }
+      return 'playing';
+    }
+    return this.playbackState;
+  }
+
+  isPlaying(): boolean {
+    return this.getPlaybackState() === 'playing';
+  }
 }
 
 export class STTSession {
@@ -459,9 +602,15 @@ export class AI3STTS {
   private config: AI3STTSConfig;
   private socket?: Socket;
   private activeSessions: Map<string, HeyGenDirectSessionImpl> = new Map();
+  private sttEnabled: boolean;
 
   constructor(config: AI3STTSConfig) {
     this.config = config;
+    this.sttEnabled = config.enableSTT !== false; // 預設啟用 STT
+    
+    if (!this.sttEnabled) {
+      console.log('[AI3STTS] STT 功能已停用');
+    }
   }
 
 
@@ -489,6 +638,11 @@ export class AI3STTS {
   }
 
   async startSTT(options: STTStartOptions = {}): Promise<STTSession> {
+    // 檢查 STT 是否啟用
+    if (!this.sttEnabled) {
+      throw new Error('STT 功能已停用。請在初始化時設定 enableSTT: true 來啟用 STT。');
+    }
+    
     return new Promise((resolve, reject) => {
       console.log('startSTT 開始，清理舊連接...');
       
@@ -539,6 +693,24 @@ export class AI3STTS {
         socket.connect();
       }, 100); // 短暫延遲確保清理完成
     });
+  }
+
+  // 檢查 STT 是否啟用
+  isSTTEnabled(): boolean {
+    return this.sttEnabled;
+  }
+
+  // 動態啟用/停用 STT
+  setSTTEnabled(enabled: boolean): void {
+    this.sttEnabled = enabled;
+    
+    if (!enabled && this.socket) {
+      // 如果停用 STT，斷開 Socket 連接
+      this.socket.disconnect();
+      this.socket = undefined;
+    }
+    
+    console.log(`[AI3STTS] STT 功能已${enabled ? '啟用' : '停用'}`);
   }
 
 
@@ -689,7 +861,7 @@ export class AI3STTS {
   }): Promise<OfficialAvatarSession> {
     try {
       // 從後端取得 token
-      const response = await fetch(`${this.config.apiUrl}/heygen-direct/v1/streaming.create_token`, {
+      const response = await fetch(`${this.config.apiUrl}/heygen-direct/v1/streaming/create_token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -10,6 +10,7 @@ export class HeygenDirectController {
     @Body() createSessionDto: {
       avatarId?: string;
       voiceId?: string;
+      timeout?: number;
     },
     @Headers('x-api-key') apiKey?: string,
   ) {
@@ -26,6 +27,7 @@ export class HeygenDirectController {
         avatarId,
         voiceId,
         token: apiKey || 'default', // 簡化授權處理
+        timeout: createSessionDto.timeout, // 支援自定義 timeout
       });
 
       return {
@@ -62,6 +64,31 @@ export class HeygenDirectController {
       return {
         success: true,
         message: '語音合成請求已發送',
+      };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('session/:sessionId/keepalive')
+  async keepalive(
+    @Param('sessionId') sessionId: string,
+    @Headers('x-api-key') apiKey?: string,
+  ) {
+    try {
+      const token = apiKey || 'default';
+      
+      await this.heygenDirectService.keepalive(sessionId, token);
+
+      return {
+        success: true,
+        message: '會話計時器已重置',
       };
     } catch (error) {
       throw new HttpException(
@@ -147,7 +174,7 @@ export class HeygenDirectController {
     }
   }
 
-  @Post('/v1/streaming.create_token')
+  @Post('v1/streaming/create_token')
   async createToken(
     @Body() createTokenDto: { avatarId?: string },
   ) {

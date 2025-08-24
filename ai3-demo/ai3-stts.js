@@ -25724,7 +25724,7 @@
 
   var minimal = {};
 
-  var aspromise = asPromise$1;
+  var aspromise = asPromise;
 
   /**
    * Callback as used by {@link util.asPromise}.
@@ -25743,7 +25743,7 @@
    * @param {...*} params Function arguments
    * @returns {Promise<*>} Promisified function
    */
-  function asPromise$1(fn, ctx/*, varargs */) {
+  function asPromise(fn, ctx/*, varargs */) {
       var params  = new Array(arguments.length - 1),
           offset  = 0,
           index   = 2,
@@ -25778,146 +25778,153 @@
 
   var base64$1 = {};
 
-  (function (exports) {
+  var hasRequiredBase64;
 
-  	/**
-  	 * A minimal base64 implementation for number arrays.
-  	 * @memberof util
-  	 * @namespace
-  	 */
-  	var base64 = exports;
+  function requireBase64 () {
+  	if (hasRequiredBase64) return base64$1;
+  	hasRequiredBase64 = 1;
+  	(function (exports) {
 
-  	/**
-  	 * Calculates the byte length of a base64 encoded string.
-  	 * @param {string} string Base64 encoded string
-  	 * @returns {number} Byte length
-  	 */
-  	base64.length = function length(string) {
-  	    var p = string.length;
-  	    if (!p)
-  	        return 0;
-  	    var n = 0;
-  	    while (--p % 4 > 1 && string.charAt(p) === "=")
-  	        ++n;
-  	    return Math.ceil(string.length * 3) / 4 - n;
-  	};
+  		/**
+  		 * A minimal base64 implementation for number arrays.
+  		 * @memberof util
+  		 * @namespace
+  		 */
+  		var base64 = exports;
 
-  	// Base64 encoding table
-  	var b64 = new Array(64);
+  		/**
+  		 * Calculates the byte length of a base64 encoded string.
+  		 * @param {string} string Base64 encoded string
+  		 * @returns {number} Byte length
+  		 */
+  		base64.length = function length(string) {
+  		    var p = string.length;
+  		    if (!p)
+  		        return 0;
+  		    var n = 0;
+  		    while (--p % 4 > 1 && string.charAt(p) === "=")
+  		        ++n;
+  		    return Math.ceil(string.length * 3) / 4 - n;
+  		};
 
-  	// Base64 decoding table
-  	var s64 = new Array(123);
+  		// Base64 encoding table
+  		var b64 = new Array(64);
 
-  	// 65..90, 97..122, 48..57, 43, 47
-  	for (var i = 0; i < 64;)
-  	    s64[b64[i] = i < 26 ? i + 65 : i < 52 ? i + 71 : i < 62 ? i - 4 : i - 59 | 43] = i++;
+  		// Base64 decoding table
+  		var s64 = new Array(123);
 
-  	/**
-  	 * Encodes a buffer to a base64 encoded string.
-  	 * @param {Uint8Array} buffer Source buffer
-  	 * @param {number} start Source start
-  	 * @param {number} end Source end
-  	 * @returns {string} Base64 encoded string
-  	 */
-  	base64.encode = function encode(buffer, start, end) {
-  	    var parts = null,
-  	        chunk = [];
-  	    var i = 0, // output index
-  	        j = 0, // goto index
-  	        t;     // temporary
-  	    while (start < end) {
-  	        var b = buffer[start++];
-  	        switch (j) {
-  	            case 0:
-  	                chunk[i++] = b64[b >> 2];
-  	                t = (b & 3) << 4;
-  	                j = 1;
-  	                break;
-  	            case 1:
-  	                chunk[i++] = b64[t | b >> 4];
-  	                t = (b & 15) << 2;
-  	                j = 2;
-  	                break;
-  	            case 2:
-  	                chunk[i++] = b64[t | b >> 6];
-  	                chunk[i++] = b64[b & 63];
-  	                j = 0;
-  	                break;
-  	        }
-  	        if (i > 8191) {
-  	            (parts || (parts = [])).push(String.fromCharCode.apply(String, chunk));
-  	            i = 0;
-  	        }
-  	    }
-  	    if (j) {
-  	        chunk[i++] = b64[t];
-  	        chunk[i++] = 61;
-  	        if (j === 1)
-  	            chunk[i++] = 61;
-  	    }
-  	    if (parts) {
-  	        if (i)
-  	            parts.push(String.fromCharCode.apply(String, chunk.slice(0, i)));
-  	        return parts.join("");
-  	    }
-  	    return String.fromCharCode.apply(String, chunk.slice(0, i));
-  	};
+  		// 65..90, 97..122, 48..57, 43, 47
+  		for (var i = 0; i < 64;)
+  		    s64[b64[i] = i < 26 ? i + 65 : i < 52 ? i + 71 : i < 62 ? i - 4 : i - 59 | 43] = i++;
 
-  	var invalidEncoding = "invalid encoding";
+  		/**
+  		 * Encodes a buffer to a base64 encoded string.
+  		 * @param {Uint8Array} buffer Source buffer
+  		 * @param {number} start Source start
+  		 * @param {number} end Source end
+  		 * @returns {string} Base64 encoded string
+  		 */
+  		base64.encode = function encode(buffer, start, end) {
+  		    var parts = null,
+  		        chunk = [];
+  		    var i = 0, // output index
+  		        j = 0, // goto index
+  		        t;     // temporary
+  		    while (start < end) {
+  		        var b = buffer[start++];
+  		        switch (j) {
+  		            case 0:
+  		                chunk[i++] = b64[b >> 2];
+  		                t = (b & 3) << 4;
+  		                j = 1;
+  		                break;
+  		            case 1:
+  		                chunk[i++] = b64[t | b >> 4];
+  		                t = (b & 15) << 2;
+  		                j = 2;
+  		                break;
+  		            case 2:
+  		                chunk[i++] = b64[t | b >> 6];
+  		                chunk[i++] = b64[b & 63];
+  		                j = 0;
+  		                break;
+  		        }
+  		        if (i > 8191) {
+  		            (parts || (parts = [])).push(String.fromCharCode.apply(String, chunk));
+  		            i = 0;
+  		        }
+  		    }
+  		    if (j) {
+  		        chunk[i++] = b64[t];
+  		        chunk[i++] = 61;
+  		        if (j === 1)
+  		            chunk[i++] = 61;
+  		    }
+  		    if (parts) {
+  		        if (i)
+  		            parts.push(String.fromCharCode.apply(String, chunk.slice(0, i)));
+  		        return parts.join("");
+  		    }
+  		    return String.fromCharCode.apply(String, chunk.slice(0, i));
+  		};
 
-  	/**
-  	 * Decodes a base64 encoded string to a buffer.
-  	 * @param {string} string Source string
-  	 * @param {Uint8Array} buffer Destination buffer
-  	 * @param {number} offset Destination offset
-  	 * @returns {number} Number of bytes written
-  	 * @throws {Error} If encoding is invalid
-  	 */
-  	base64.decode = function decode(string, buffer, offset) {
-  	    var start = offset;
-  	    var j = 0, // goto index
-  	        t;     // temporary
-  	    for (var i = 0; i < string.length;) {
-  	        var c = string.charCodeAt(i++);
-  	        if (c === 61 && j > 1)
-  	            break;
-  	        if ((c = s64[c]) === undefined)
-  	            throw Error(invalidEncoding);
-  	        switch (j) {
-  	            case 0:
-  	                t = c;
-  	                j = 1;
-  	                break;
-  	            case 1:
-  	                buffer[offset++] = t << 2 | (c & 48) >> 4;
-  	                t = c;
-  	                j = 2;
-  	                break;
-  	            case 2:
-  	                buffer[offset++] = (t & 15) << 4 | (c & 60) >> 2;
-  	                t = c;
-  	                j = 3;
-  	                break;
-  	            case 3:
-  	                buffer[offset++] = (t & 3) << 6 | c;
-  	                j = 0;
-  	                break;
-  	        }
-  	    }
-  	    if (j === 1)
-  	        throw Error(invalidEncoding);
-  	    return offset - start;
-  	};
+  		var invalidEncoding = "invalid encoding";
 
-  	/**
-  	 * Tests if the specified string appears to be base64 encoded.
-  	 * @param {string} string String to test
-  	 * @returns {boolean} `true` if probably base64 encoded, otherwise false
-  	 */
-  	base64.test = function test(string) {
-  	    return /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(string);
-  	}; 
-  } (base64$1));
+  		/**
+  		 * Decodes a base64 encoded string to a buffer.
+  		 * @param {string} string Source string
+  		 * @param {Uint8Array} buffer Destination buffer
+  		 * @param {number} offset Destination offset
+  		 * @returns {number} Number of bytes written
+  		 * @throws {Error} If encoding is invalid
+  		 */
+  		base64.decode = function decode(string, buffer, offset) {
+  		    var start = offset;
+  		    var j = 0, // goto index
+  		        t;     // temporary
+  		    for (var i = 0; i < string.length;) {
+  		        var c = string.charCodeAt(i++);
+  		        if (c === 61 && j > 1)
+  		            break;
+  		        if ((c = s64[c]) === undefined)
+  		            throw Error(invalidEncoding);
+  		        switch (j) {
+  		            case 0:
+  		                t = c;
+  		                j = 1;
+  		                break;
+  		            case 1:
+  		                buffer[offset++] = t << 2 | (c & 48) >> 4;
+  		                t = c;
+  		                j = 2;
+  		                break;
+  		            case 2:
+  		                buffer[offset++] = (t & 15) << 4 | (c & 60) >> 2;
+  		                t = c;
+  		                j = 3;
+  		                break;
+  		            case 3:
+  		                buffer[offset++] = (t & 3) << 6 | c;
+  		                j = 0;
+  		                break;
+  		        }
+  		    }
+  		    if (j === 1)
+  		        throw Error(invalidEncoding);
+  		    return offset - start;
+  		};
+
+  		/**
+  		 * Tests if the specified string appears to be base64 encoded.
+  		 * @param {string} string String to test
+  		 * @returns {boolean} `true` if probably base64 encoded, otherwise false
+  		 */
+  		base64.test = function test(string) {
+  		    return /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(string);
+  		}; 
+  	} (base64$1));
+  	return base64$1;
+  }
 
   var eventemitter = EventEmitter;
 
@@ -26329,7 +26336,7 @@
             | buf[pos + 3]) >>> 0;
   }
 
-  var inquire_1 = inquire$1;
+  var inquire_1 = inquire;
 
   /**
    * Requires a module only if available.
@@ -26337,7 +26344,7 @@
    * @param {string} moduleName Module to require
    * @returns {?Object} Required module if available and not empty, otherwise `null`
    */
-  function inquire$1(moduleName) {
+  function inquire(moduleName) {
       try {
           var mod = eval("quire".replace(/^/,"re"))(moduleName); // eslint-disable-line no-eval
           if (mod && (mod.length || Object.keys(mod).length))
@@ -26723,7 +26730,7 @@
   		util.asPromise = aspromise;
 
   		// converts to / from base64 encoded strings
-  		util.base64 = base64$1;
+  		util.base64 = requireBase64();
 
   		// base class of rpc.Service
   		util.EventEmitter = eventemitter;
@@ -28401,288 +28408,311 @@
 
   var util$2 = {exports: {}};
 
-  var codegen_1 = codegen;
+  var codegen_1;
+  var hasRequiredCodegen;
 
-  /**
-   * Begins generating a function.
-   * @memberof util
-   * @param {string[]} functionParams Function parameter names
-   * @param {string} [functionName] Function name if not anonymous
-   * @returns {Codegen} Appender that appends code to the function's body
-   */
-  function codegen(functionParams, functionName) {
+  function requireCodegen () {
+  	if (hasRequiredCodegen) return codegen_1;
+  	hasRequiredCodegen = 1;
+  	codegen_1 = codegen;
 
-      /* istanbul ignore if */
-      if (typeof functionParams === "string") {
-          functionName = functionParams;
-          functionParams = undefined;
-      }
+  	/**
+  	 * Begins generating a function.
+  	 * @memberof util
+  	 * @param {string[]} functionParams Function parameter names
+  	 * @param {string} [functionName] Function name if not anonymous
+  	 * @returns {Codegen} Appender that appends code to the function's body
+  	 */
+  	function codegen(functionParams, functionName) {
 
-      var body = [];
+  	    /* istanbul ignore if */
+  	    if (typeof functionParams === "string") {
+  	        functionName = functionParams;
+  	        functionParams = undefined;
+  	    }
 
-      /**
-       * Appends code to the function's body or finishes generation.
-       * @typedef Codegen
-       * @type {function}
-       * @param {string|Object.<string,*>} [formatStringOrScope] Format string or, to finish the function, an object of additional scope variables, if any
-       * @param {...*} [formatParams] Format parameters
-       * @returns {Codegen|Function} Itself or the generated function if finished
-       * @throws {Error} If format parameter counts do not match
-       */
+  	    var body = [];
 
-      function Codegen(formatStringOrScope) {
-          // note that explicit array handling below makes this ~50% faster
+  	    /**
+  	     * Appends code to the function's body or finishes generation.
+  	     * @typedef Codegen
+  	     * @type {function}
+  	     * @param {string|Object.<string,*>} [formatStringOrScope] Format string or, to finish the function, an object of additional scope variables, if any
+  	     * @param {...*} [formatParams] Format parameters
+  	     * @returns {Codegen|Function} Itself or the generated function if finished
+  	     * @throws {Error} If format parameter counts do not match
+  	     */
 
-          // finish the function
-          if (typeof formatStringOrScope !== "string") {
-              var source = toString();
-              if (codegen.verbose)
-                  console.log("codegen: " + source); // eslint-disable-line no-console
-              source = "return " + source;
-              if (formatStringOrScope) {
-                  var scopeKeys   = Object.keys(formatStringOrScope),
-                      scopeParams = new Array(scopeKeys.length + 1),
-                      scopeValues = new Array(scopeKeys.length),
-                      scopeOffset = 0;
-                  while (scopeOffset < scopeKeys.length) {
-                      scopeParams[scopeOffset] = scopeKeys[scopeOffset];
-                      scopeValues[scopeOffset] = formatStringOrScope[scopeKeys[scopeOffset++]];
-                  }
-                  scopeParams[scopeOffset] = source;
-                  return Function.apply(null, scopeParams).apply(null, scopeValues); // eslint-disable-line no-new-func
-              }
-              return Function(source)(); // eslint-disable-line no-new-func
-          }
+  	    function Codegen(formatStringOrScope) {
+  	        // note that explicit array handling below makes this ~50% faster
 
-          // otherwise append to body
-          var formatParams = new Array(arguments.length - 1),
-              formatOffset = 0;
-          while (formatOffset < formatParams.length)
-              formatParams[formatOffset] = arguments[++formatOffset];
-          formatOffset = 0;
-          formatStringOrScope = formatStringOrScope.replace(/%([%dfijs])/g, function replace($0, $1) {
-              var value = formatParams[formatOffset++];
-              switch ($1) {
-                  case "d": case "f": return String(Number(value));
-                  case "i": return String(Math.floor(value));
-                  case "j": return JSON.stringify(value);
-                  case "s": return String(value);
-              }
-              return "%";
-          });
-          if (formatOffset !== formatParams.length)
-              throw Error("parameter count mismatch");
-          body.push(formatStringOrScope);
-          return Codegen;
-      }
+  	        // finish the function
+  	        if (typeof formatStringOrScope !== "string") {
+  	            var source = toString();
+  	            if (codegen.verbose)
+  	                console.log("codegen: " + source); // eslint-disable-line no-console
+  	            source = "return " + source;
+  	            if (formatStringOrScope) {
+  	                var scopeKeys   = Object.keys(formatStringOrScope),
+  	                    scopeParams = new Array(scopeKeys.length + 1),
+  	                    scopeValues = new Array(scopeKeys.length),
+  	                    scopeOffset = 0;
+  	                while (scopeOffset < scopeKeys.length) {
+  	                    scopeParams[scopeOffset] = scopeKeys[scopeOffset];
+  	                    scopeValues[scopeOffset] = formatStringOrScope[scopeKeys[scopeOffset++]];
+  	                }
+  	                scopeParams[scopeOffset] = source;
+  	                return Function.apply(null, scopeParams).apply(null, scopeValues); // eslint-disable-line no-new-func
+  	            }
+  	            return Function(source)(); // eslint-disable-line no-new-func
+  	        }
 
-      function toString(functionNameOverride) {
-          return "function " + (functionNameOverride || functionName || "") + "(" + (functionParams && functionParams.join(",") || "") + "){\n  " + body.join("\n  ") + "\n}";
-      }
+  	        // otherwise append to body
+  	        var formatParams = new Array(arguments.length - 1),
+  	            formatOffset = 0;
+  	        while (formatOffset < formatParams.length)
+  	            formatParams[formatOffset] = arguments[++formatOffset];
+  	        formatOffset = 0;
+  	        formatStringOrScope = formatStringOrScope.replace(/%([%dfijs])/g, function replace($0, $1) {
+  	            var value = formatParams[formatOffset++];
+  	            switch ($1) {
+  	                case "d": case "f": return String(Number(value));
+  	                case "i": return String(Math.floor(value));
+  	                case "j": return JSON.stringify(value);
+  	                case "s": return String(value);
+  	            }
+  	            return "%";
+  	        });
+  	        if (formatOffset !== formatParams.length)
+  	            throw Error("parameter count mismatch");
+  	        body.push(formatStringOrScope);
+  	        return Codegen;
+  	    }
 
-      Codegen.toString = toString;
-      return Codegen;
+  	    function toString(functionNameOverride) {
+  	        return "function " + (functionNameOverride || functionName || "") + "(" + (functionParams && functionParams.join(",") || "") + "){\n  " + body.join("\n  ") + "\n}";
+  	    }
+
+  	    Codegen.toString = toString;
+  	    return Codegen;
+  	}
+
+  	/**
+  	 * Begins generating a function.
+  	 * @memberof util
+  	 * @function codegen
+  	 * @param {string} [functionName] Function name if not anonymous
+  	 * @returns {Codegen} Appender that appends code to the function's body
+  	 * @variation 2
+  	 */
+
+  	/**
+  	 * When set to `true`, codegen will log generated code to console. Useful for debugging.
+  	 * @name util.codegen.verbose
+  	 * @type {boolean}
+  	 */
+  	codegen.verbose = false;
+  	return codegen_1;
   }
 
-  /**
-   * Begins generating a function.
-   * @memberof util
-   * @function codegen
-   * @param {string} [functionName] Function name if not anonymous
-   * @returns {Codegen} Appender that appends code to the function's body
-   * @variation 2
-   */
+  var fetch_1;
+  var hasRequiredFetch;
 
-  /**
-   * When set to `true`, codegen will log generated code to console. Useful for debugging.
-   * @name util.codegen.verbose
-   * @type {boolean}
-   */
-  codegen.verbose = false;
+  function requireFetch () {
+  	if (hasRequiredFetch) return fetch_1;
+  	hasRequiredFetch = 1;
+  	fetch_1 = fetch;
 
-  var fetch_1 = fetch$1;
+  	var asPromise = aspromise,
+  	    inquire   = inquire_1;
 
-  var asPromise = aspromise,
-      inquire   = inquire_1;
+  	var fs = inquire("fs");
 
-  var fs = inquire("fs");
+  	/**
+  	 * Node-style callback as used by {@link util.fetch}.
+  	 * @typedef FetchCallback
+  	 * @type {function}
+  	 * @param {?Error} error Error, if any, otherwise `null`
+  	 * @param {string} [contents] File contents, if there hasn't been an error
+  	 * @returns {undefined}
+  	 */
 
-  /**
-   * Node-style callback as used by {@link util.fetch}.
-   * @typedef FetchCallback
-   * @type {function}
-   * @param {?Error} error Error, if any, otherwise `null`
-   * @param {string} [contents] File contents, if there hasn't been an error
-   * @returns {undefined}
-   */
+  	/**
+  	 * Options as used by {@link util.fetch}.
+  	 * @typedef FetchOptions
+  	 * @type {Object}
+  	 * @property {boolean} [binary=false] Whether expecting a binary response
+  	 * @property {boolean} [xhr=false] If `true`, forces the use of XMLHttpRequest
+  	 */
 
-  /**
-   * Options as used by {@link util.fetch}.
-   * @typedef FetchOptions
-   * @type {Object}
-   * @property {boolean} [binary=false] Whether expecting a binary response
-   * @property {boolean} [xhr=false] If `true`, forces the use of XMLHttpRequest
-   */
+  	/**
+  	 * Fetches the contents of a file.
+  	 * @memberof util
+  	 * @param {string} filename File path or url
+  	 * @param {FetchOptions} options Fetch options
+  	 * @param {FetchCallback} callback Callback function
+  	 * @returns {undefined}
+  	 */
+  	function fetch(filename, options, callback) {
+  	    if (typeof options === "function") {
+  	        callback = options;
+  	        options = {};
+  	    } else if (!options)
+  	        options = {};
 
-  /**
-   * Fetches the contents of a file.
-   * @memberof util
-   * @param {string} filename File path or url
-   * @param {FetchOptions} options Fetch options
-   * @param {FetchCallback} callback Callback function
-   * @returns {undefined}
-   */
-  function fetch$1(filename, options, callback) {
-      if (typeof options === "function") {
-          callback = options;
-          options = {};
-      } else if (!options)
-          options = {};
+  	    if (!callback)
+  	        return asPromise(fetch, this, filename, options); // eslint-disable-line no-invalid-this
 
-      if (!callback)
-          return asPromise(fetch$1, this, filename, options); // eslint-disable-line no-invalid-this
+  	    // if a node-like filesystem is present, try it first but fall back to XHR if nothing is found.
+  	    if (!options.xhr && fs && fs.readFile)
+  	        return fs.readFile(filename, function fetchReadFileCallback(err, contents) {
+  	            return err && typeof XMLHttpRequest !== "undefined"
+  	                ? fetch.xhr(filename, options, callback)
+  	                : err
+  	                ? callback(err)
+  	                : callback(null, options.binary ? contents : contents.toString("utf8"));
+  	        });
 
-      // if a node-like filesystem is present, try it first but fall back to XHR if nothing is found.
-      if (!options.xhr && fs && fs.readFile)
-          return fs.readFile(filename, function fetchReadFileCallback(err, contents) {
-              return err && typeof XMLHttpRequest !== "undefined"
-                  ? fetch$1.xhr(filename, options, callback)
-                  : err
-                  ? callback(err)
-                  : callback(null, options.binary ? contents : contents.toString("utf8"));
-          });
+  	    // use the XHR version otherwise.
+  	    return fetch.xhr(filename, options, callback);
+  	}
 
-      // use the XHR version otherwise.
-      return fetch$1.xhr(filename, options, callback);
+  	/**
+  	 * Fetches the contents of a file.
+  	 * @name util.fetch
+  	 * @function
+  	 * @param {string} path File path or url
+  	 * @param {FetchCallback} callback Callback function
+  	 * @returns {undefined}
+  	 * @variation 2
+  	 */
+
+  	/**
+  	 * Fetches the contents of a file.
+  	 * @name util.fetch
+  	 * @function
+  	 * @param {string} path File path or url
+  	 * @param {FetchOptions} [options] Fetch options
+  	 * @returns {Promise<string|Uint8Array>} Promise
+  	 * @variation 3
+  	 */
+
+  	/**/
+  	fetch.xhr = function fetch_xhr(filename, options, callback) {
+  	    var xhr = new XMLHttpRequest();
+  	    xhr.onreadystatechange /* works everywhere */ = function fetchOnReadyStateChange() {
+
+  	        if (xhr.readyState !== 4)
+  	            return undefined;
+
+  	        // local cors security errors return status 0 / empty string, too. afaik this cannot be
+  	        // reliably distinguished from an actually empty file for security reasons. feel free
+  	        // to send a pull request if you are aware of a solution.
+  	        if (xhr.status !== 0 && xhr.status !== 200)
+  	            return callback(Error("status " + xhr.status));
+
+  	        // if binary data is expected, make sure that some sort of array is returned, even if
+  	        // ArrayBuffers are not supported. the binary string fallback, however, is unsafe.
+  	        if (options.binary) {
+  	            var buffer = xhr.response;
+  	            if (!buffer) {
+  	                buffer = [];
+  	                for (var i = 0; i < xhr.responseText.length; ++i)
+  	                    buffer.push(xhr.responseText.charCodeAt(i) & 255);
+  	            }
+  	            return callback(null, typeof Uint8Array !== "undefined" ? new Uint8Array(buffer) : buffer);
+  	        }
+  	        return callback(null, xhr.responseText);
+  	    };
+
+  	    if (options.binary) {
+  	        // ref: https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/Sending_and_Receiving_Binary_Data#Receiving_binary_data_in_older_browsers
+  	        if ("overrideMimeType" in xhr)
+  	            xhr.overrideMimeType("text/plain; charset=x-user-defined");
+  	        xhr.responseType = "arraybuffer";
+  	    }
+
+  	    xhr.open("GET", filename);
+  	    xhr.send();
+  	};
+  	return fetch_1;
   }
-
-  /**
-   * Fetches the contents of a file.
-   * @name util.fetch
-   * @function
-   * @param {string} path File path or url
-   * @param {FetchCallback} callback Callback function
-   * @returns {undefined}
-   * @variation 2
-   */
-
-  /**
-   * Fetches the contents of a file.
-   * @name util.fetch
-   * @function
-   * @param {string} path File path or url
-   * @param {FetchOptions} [options] Fetch options
-   * @returns {Promise<string|Uint8Array>} Promise
-   * @variation 3
-   */
-
-  /**/
-  fetch$1.xhr = function fetch_xhr(filename, options, callback) {
-      var xhr = new XMLHttpRequest();
-      xhr.onreadystatechange /* works everywhere */ = function fetchOnReadyStateChange() {
-
-          if (xhr.readyState !== 4)
-              return undefined;
-
-          // local cors security errors return status 0 / empty string, too. afaik this cannot be
-          // reliably distinguished from an actually empty file for security reasons. feel free
-          // to send a pull request if you are aware of a solution.
-          if (xhr.status !== 0 && xhr.status !== 200)
-              return callback(Error("status " + xhr.status));
-
-          // if binary data is expected, make sure that some sort of array is returned, even if
-          // ArrayBuffers are not supported. the binary string fallback, however, is unsafe.
-          if (options.binary) {
-              var buffer = xhr.response;
-              if (!buffer) {
-                  buffer = [];
-                  for (var i = 0; i < xhr.responseText.length; ++i)
-                      buffer.push(xhr.responseText.charCodeAt(i) & 255);
-              }
-              return callback(null, typeof Uint8Array !== "undefined" ? new Uint8Array(buffer) : buffer);
-          }
-          return callback(null, xhr.responseText);
-      };
-
-      if (options.binary) {
-          // ref: https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/Sending_and_Receiving_Binary_Data#Receiving_binary_data_in_older_browsers
-          if ("overrideMimeType" in xhr)
-              xhr.overrideMimeType("text/plain; charset=x-user-defined");
-          xhr.responseType = "arraybuffer";
-      }
-
-      xhr.open("GET", filename);
-      xhr.send();
-  };
 
   var path = {};
 
-  (function (exports) {
+  var hasRequiredPath;
 
-  	/**
-  	 * A minimal path module to resolve Unix, Windows and URL paths alike.
-  	 * @memberof util
-  	 * @namespace
-  	 */
-  	var path = exports;
+  function requirePath () {
+  	if (hasRequiredPath) return path;
+  	hasRequiredPath = 1;
+  	(function (exports) {
 
-  	var isAbsolute =
-  	/**
-  	 * Tests if the specified path is absolute.
-  	 * @param {string} path Path to test
-  	 * @returns {boolean} `true` if path is absolute
-  	 */
-  	path.isAbsolute = function isAbsolute(path) {
-  	    return /^(?:\/|\w+:)/.test(path);
-  	};
+  		/**
+  		 * A minimal path module to resolve Unix, Windows and URL paths alike.
+  		 * @memberof util
+  		 * @namespace
+  		 */
+  		var path = exports;
 
-  	var normalize =
-  	/**
-  	 * Normalizes the specified path.
-  	 * @param {string} path Path to normalize
-  	 * @returns {string} Normalized path
-  	 */
-  	path.normalize = function normalize(path) {
-  	    path = path.replace(/\\/g, "/")
-  	               .replace(/\/{2,}/g, "/");
-  	    var parts    = path.split("/"),
-  	        absolute = isAbsolute(path),
-  	        prefix   = "";
-  	    if (absolute)
-  	        prefix = parts.shift() + "/";
-  	    for (var i = 0; i < parts.length;) {
-  	        if (parts[i] === "..") {
-  	            if (i > 0 && parts[i - 1] !== "..")
-  	                parts.splice(--i, 2);
-  	            else if (absolute)
-  	                parts.splice(i, 1);
-  	            else
-  	                ++i;
-  	        } else if (parts[i] === ".")
-  	            parts.splice(i, 1);
-  	        else
-  	            ++i;
-  	    }
-  	    return prefix + parts.join("/");
-  	};
+  		var isAbsolute =
+  		/**
+  		 * Tests if the specified path is absolute.
+  		 * @param {string} path Path to test
+  		 * @returns {boolean} `true` if path is absolute
+  		 */
+  		path.isAbsolute = function isAbsolute(path) {
+  		    return /^(?:\/|\w+:)/.test(path);
+  		};
 
-  	/**
-  	 * Resolves the specified include path against the specified origin path.
-  	 * @param {string} originPath Path to the origin file
-  	 * @param {string} includePath Include path relative to origin path
-  	 * @param {boolean} [alreadyNormalized=false] `true` if both paths are already known to be normalized
-  	 * @returns {string} Path to the include file
-  	 */
-  	path.resolve = function resolve(originPath, includePath, alreadyNormalized) {
-  	    if (!alreadyNormalized)
-  	        includePath = normalize(includePath);
-  	    if (isAbsolute(includePath))
-  	        return includePath;
-  	    if (!alreadyNormalized)
-  	        originPath = normalize(originPath);
-  	    return (originPath = originPath.replace(/(?:\/|^)[^/]+$/, "")).length ? normalize(originPath + "/" + includePath) : includePath;
-  	}; 
-  } (path));
+  		var normalize =
+  		/**
+  		 * Normalizes the specified path.
+  		 * @param {string} path Path to normalize
+  		 * @returns {string} Normalized path
+  		 */
+  		path.normalize = function normalize(path) {
+  		    path = path.replace(/\\/g, "/")
+  		               .replace(/\/{2,}/g, "/");
+  		    var parts    = path.split("/"),
+  		        absolute = isAbsolute(path),
+  		        prefix   = "";
+  		    if (absolute)
+  		        prefix = parts.shift() + "/";
+  		    for (var i = 0; i < parts.length;) {
+  		        if (parts[i] === "..") {
+  		            if (i > 0 && parts[i - 1] !== "..")
+  		                parts.splice(--i, 2);
+  		            else if (absolute)
+  		                parts.splice(i, 1);
+  		            else
+  		                ++i;
+  		        } else if (parts[i] === ".")
+  		            parts.splice(i, 1);
+  		        else
+  		            ++i;
+  		    }
+  		    return prefix + parts.join("/");
+  		};
+
+  		/**
+  		 * Resolves the specified include path against the specified origin path.
+  		 * @param {string} originPath Path to the origin file
+  		 * @param {string} includePath Include path relative to origin path
+  		 * @param {boolean} [alreadyNormalized=false] `true` if both paths are already known to be normalized
+  		 * @returns {string} Path to the include file
+  		 */
+  		path.resolve = function resolve(originPath, includePath, alreadyNormalized) {
+  		    if (!alreadyNormalized)
+  		        includePath = normalize(includePath);
+  		    if (isAbsolute(includePath))
+  		        return includePath;
+  		    if (!alreadyNormalized)
+  		        originPath = normalize(originPath);
+  		    return (originPath = originPath.replace(/(?:\/|^)[^/]+$/, "")).length ? normalize(originPath + "/" + includePath) : includePath;
+  		}; 
+  	} (path));
+  	return path;
+  }
 
   var namespace;
   var hasRequiredNamespace;
@@ -31663,9 +31693,9 @@
   	var Type, // cyclic
   	    Enum;
 
-  	util.codegen = codegen_1;
-  	util.fetch   = fetch_1;
-  	util.path    = path;
+  	util.codegen = requireCodegen();
+  	util.fetch   = requireFetch();
+  	util.path    = requirePath();
 
   	/**
   	 * Node's fs module if available.
@@ -36620,6 +36650,7 @@
           this.videoElement = null;
           this.audioElement = null;
           this.isConnected = false;
+          this.playbackState = 'stopped';
           this.container = options.container;
           this.realtimeEndpoint = options.realtimeEndpoint;
           // 立即創建視頻和音頻元素
@@ -36811,6 +36842,135 @@
       isActive() {
           return this.isConnected;
       }
+      // 聲音控制功能
+      async enableAudio() {
+          if (!this.videoElement && !this.audioElement) {
+              console.warn('[HeyGenPlayer] 沒有可用的媒體元素');
+              return false;
+          }
+          try {
+              // 優先使用 video element
+              const mediaElement = this.videoElement || this.audioElement;
+              if (!mediaElement)
+                  return false;
+              mediaElement.muted = false;
+              // 嘗試播放
+              if (mediaElement.paused) {
+                  await mediaElement.play();
+              }
+              console.log('[HeyGenPlayer] 聲音已啟用');
+              return true;
+          }
+          catch (error) {
+              console.warn('[HeyGenPlayer] 自動播放失敗，需要用戶互動:', error);
+              // 智能降級：靜音播放
+              try {
+                  const mediaElement = this.videoElement || this.audioElement;
+                  if (mediaElement) {
+                      mediaElement.muted = true;
+                      await mediaElement.play();
+                      console.log('[HeyGenPlayer] 降級為靜音播放，請手動開啟聲音');
+                  }
+              }
+              catch (e) {
+                  console.error('[HeyGenPlayer] 播放完全失敗:', e);
+              }
+              return false;
+          }
+      }
+      setVolume(volume) {
+          const clampedVolume = Math.max(0, Math.min(1, volume));
+          if (this.videoElement) {
+              this.videoElement.volume = clampedVolume;
+          }
+          if (this.audioElement) {
+              this.audioElement.volume = clampedVolume;
+          }
+          console.log(`[HeyGenPlayer] 音量設定為: ${(clampedVolume * 100).toFixed(0)}%`);
+      }
+      getVolume() {
+          if (this.videoElement) {
+              return this.videoElement.volume;
+          }
+          if (this.audioElement) {
+              return this.audioElement.volume;
+          }
+          return 1;
+      }
+      mute() {
+          if (this.videoElement) {
+              this.videoElement.muted = true;
+          }
+          if (this.audioElement) {
+              this.audioElement.muted = true;
+          }
+          console.log('[HeyGenPlayer] 已靜音');
+      }
+      unmute() {
+          if (this.videoElement) {
+              this.videoElement.muted = false;
+          }
+          if (this.audioElement) {
+              this.audioElement.muted = false;
+          }
+          console.log('[HeyGenPlayer] 已取消靜音');
+      }
+      isMuted() {
+          if (this.videoElement) {
+              return this.videoElement.muted;
+          }
+          if (this.audioElement) {
+              return this.audioElement.muted;
+          }
+          return false;
+      }
+      // 播放控制功能
+      pause() {
+          if (this.videoElement && !this.videoElement.paused) {
+              this.videoElement.pause();
+              this.playbackState = 'paused';
+          }
+          if (this.audioElement && !this.audioElement.paused) {
+              this.audioElement.pause();
+              this.playbackState = 'paused';
+          }
+          console.log('[HeyGenPlayer] 已暫停');
+      }
+      async resume() {
+          try {
+              if (this.videoElement && this.videoElement.paused) {
+                  await this.videoElement.play();
+                  this.playbackState = 'playing';
+              }
+              if (this.audioElement && this.audioElement.paused) {
+                  await this.audioElement.play();
+                  this.playbackState = 'playing';
+              }
+              console.log('[HeyGenPlayer] 已恢復播放');
+          }
+          catch (error) {
+              console.error('[HeyGenPlayer] 恢復播放失敗:', error);
+              throw error;
+          }
+      }
+      getPlaybackState() {
+          if (this.videoElement) {
+              if (this.videoElement.paused) {
+                  return this.videoElement.currentTime > 0 ? 'paused' : 'stopped';
+              }
+              return 'playing';
+          }
+          if (this.audioElement) {
+              if (this.audioElement.paused) {
+                  return this.audioElement.currentTime > 0 ? 'paused' : 'stopped';
+              }
+              return 'playing';
+          }
+          return this.playbackState;
+      }
+      isPlaying() {
+          return this.getPlaybackState() === 'playing';
+      }
   }
   class STTSession {
       constructor(socket) {
@@ -36938,6 +37098,10 @@
       constructor(config) {
           this.activeSessions = new Map();
           this.config = config;
+          this.sttEnabled = config.enableSTT !== false; // 預設啟用 STT
+          if (!this.sttEnabled) {
+              console.log('[AI3STTS] STT 功能已停用');
+          }
       }
       getSocket() {
           if (!this.socket) {
@@ -36959,6 +37123,10 @@
           return this.socket;
       }
       async startSTT(options = {}) {
+          // 檢查 STT 是否啟用
+          if (!this.sttEnabled) {
+              throw new Error('STT 功能已停用。請在初始化時設定 enableSTT: true 來啟用 STT。');
+          }
           return new Promise((resolve, reject) => {
               console.log('startSTT 開始，清理舊連接...');
               // 強制清理舊 Socket
@@ -37000,6 +37168,20 @@
                   socket.connect();
               }, 100); // 短暫延遲確保清理完成
           });
+      }
+      // 檢查 STT 是否啟用
+      isSTTEnabled() {
+          return this.sttEnabled;
+      }
+      // 動態啟用/停用 STT
+      setSTTEnabled(enabled) {
+          this.sttEnabled = enabled;
+          if (!enabled && this.socket) {
+              // 如果停用 STT，斷開 Socket 連接
+              this.socket.disconnect();
+              this.socket = undefined;
+          }
+          console.log(`[AI3STTS] STT 功能已${enabled ? '啟用' : '停用'}`);
       }
       async getAvatarConfigs() {
           try {
@@ -37109,7 +37291,7 @@
       async createOfficialAvatarSession(options) {
           try {
               // 從後端取得 token
-              const response = await fetch(`${this.config.apiUrl}/heygen-direct/v1/streaming.create_token`, {
+              const response = await fetch(`${this.config.apiUrl}/heygen-direct/v1/streaming/create_token`, {
                   method: 'POST',
                   headers: {
                       'Content-Type': 'application/json',
