@@ -164,6 +164,32 @@ if (response.ok) {
 }
 ```
 
+### 音效控制
+
+```javascript
+// 啟用音效權限
+const audioEnabled = await session.player.enableAudio();
+if (audioEnabled) {
+  console.log('音效已啟用');
+}
+
+// 音量控制
+await session.player.setVolume(0.8); // 設定音量 0-1
+
+// 靜音控制
+await session.player.mute();     // 靜音
+await session.player.unmute();   // 取消靜音
+
+// 播放控制
+await session.player.pause();    // 暫停播放
+await session.player.resume();   // 恢復播放
+
+// 狀態查詢
+const isMuted = session.player.isMuted();
+const isPlaying = session.player.isPlaying();
+const volume = session.player.getVolume();
+```
+
 ## 📖 使用方式
 
 ### 整合 AI3 WebChat (STT → WebChat → HeyGen)
@@ -325,6 +351,55 @@ mediaRecorder.ondataavailable = (event) => {
 mediaRecorder.start(100); // 每 100ms 發送一次
 ```
 
+#### HeyGen 直接會話
+
+##### 創建會話
+```javascript
+// 創建 HeyGen 直接會話
+const session = await client.createHeyGenDirectSession({
+  avatarId: 'your-avatar-id',
+  voiceId: 'your-voice-id',
+  timeout: 600000, // 可選：超時時間（毫秒）
+  onSessionUpdate: (status) => {
+    console.log('會話狀態更新:', status);
+  }
+});
+```
+
+##### HeyGenPlayer 控制
+```javascript
+// 創建播放器（自動在 createHeyGenDirectSession 時創建）
+const player = session.player;
+
+// 音效控制
+await player.enableAudio();
+await player.setVolume(0.8);
+await player.mute();
+await player.unmute();
+
+// 播放控制
+await player.pause();
+await player.resume();
+
+// 狀態查詢
+const isPlaying = player.isPlaying();
+const isMuted = player.isMuted();
+const volume = player.getVolume();
+```
+
+##### 官方 Avatar 初始化
+```javascript
+// 初始化到指定容器
+const container = document.getElementById('avatar-container');
+await session.initialize(container);
+
+// 開始播放文字
+await session.speak('你好，我是虛擬助手！');
+
+// 停止會話
+await session.stop();
+```
+
 #### HeyGen 虛擬人物
 ```javascript
 // 播放文字
@@ -337,7 +412,8 @@ await client.speakText('歡迎使用 AI3 STTS 系統', {
 ### API 端點
 
 #### WebSocket 連接
-- **端點**: `/stt`
+
+##### STT 語音識別 `/stt`
 - **用途**: 即時語音識別
 
 訊息格式：
@@ -355,6 +431,29 @@ await client.speakText('歡迎使用 AI3 STTS 系統', {
   confidence: number,
   language: string
 }
+```
+
+##### HeyGen 直接模式 `/heygen-direct`
+- **用途**: 即時會話狀態更新和事件通知
+
+連線事件：
+```javascript
+// 連線成功
+socket.on('connect', () => {
+  console.log('已連線到 HeyGen Direct 服務');
+});
+
+// 會話狀態更新
+socket.on('sessionUpdate', (data) => {
+  console.log('會話狀態:', data.status);
+  // 狀態: idle, initializing, ready, speaking, stopped
+});
+
+// 會話事件通知
+socket.on('sessionEvent', (event) => {
+  console.log('會話事件:', event.type, event.data);
+  // 事件類型: created, expired, error
+});
 ```
 
 #### REST API
@@ -570,6 +669,47 @@ await client.speakText('歡迎使用 AI3 STTS 系統', {
 - 修正會話 ID 錯誤問題
 - 新增 HeyGen Direct API 端點
 
+## 📋 版本遷移指南
+
+### 從舊版本升級
+
+#### 已移除的功能
+- **iframe 模式**：不再支援 iframe 整合方式
+- **雙模式架構**：統一使用 HeyGen 直接模式
+- **舊版 WebRTC API**：移除 `/heygen/webrtc/*` 端點
+- **獨立音效控制 API**：音效控制整合到 player 物件中
+
+#### API 變更
+```javascript
+// 舊版 (已移除)
+❌ client.setMode('iframe');
+❌ client.getIframeUrl('avatar-1');
+❌ fetch('/heygen/webrtc/start');
+
+// 新版 (推薦)
+✅ const session = await client.createHeyGenDirectSession({...});
+✅ await session.initialize(container);
+✅ await session.speak(text);
+```
+
+#### 環境變數更新
+```bash
+# 已移除
+❌ DEFAULT_HEYGEN_MODE=iframe
+
+# 保留
+✅ ENABLE_HEYGEN_DIRECT_MODE=true
+✅ HEYGEN_DIRECT_SESSION_TIMEOUT=10
+✅ HEYGEN_SESSION_CLEANUP_INTERVAL=5
+```
+
+#### 升級步驟
+1. 移除 iframe 相關代碼
+2. 使用 `createHeyGenDirectSession()` 替代舊 API
+3. 更新環境變數設定
+4. 測試音效控制功能
+5. 驗證會話管理流程
+
 ---
 
 ## 🎯 範例應用程式
@@ -588,6 +728,60 @@ cd example
 - HeyGen 虛擬人物播放
 - 錯誤處理和狀態指示
 - 響應式 UI 設計
+
+## 🧪 AI3-Demo 測試工具
+
+`ai3-demo/` 目錄提供完整的測試工具，包含詳細的功能測試界面：
+
+### 測試頁面功能
+
+```bash
+# 啟動服務後直接訪問
+http://localhost:3000/demo/test.html
+```
+
+### 主要測試功能
+
+#### 對話控制
+```javascript
+// 開始對話
+await Avatar.startConversation();
+
+// 停止對話  
+await Avatar.stopConversation();
+```
+
+#### STT 語音識別測試
+- **開始 STT**：測試語音識別功能
+- **停止 STT**：結束語音識別
+- **STT 狀態**：查看連線狀態
+- **STT 連線測試**：驗證 WebSocket 連線
+
+#### HeyGen 會話測試
+- **創建直接會話**：建立 HeyGen 會話
+- **停止直接會話**：結束會話
+- **自訂超時會話**：測試會話延長功能
+- **發送 Keepalive**：重置會話計時器
+
+#### 音效控制測試
+- **啟用音效**：初始化音效權限
+- **靜音/取消靜音**：音效開關控制
+- **暫停/恢復播放**：播放狀態控制
+- **音效狀態查詢**：取得當前音效狀態
+
+#### 整合測試
+- **含 STT 模式**：完整語音互動流程
+- **不含 STT 模式**：純文字轉語音模式
+
+### Avatar.js 核心功能
+
+測試工具基於 `Avatar.js` 構建，主要功能包括：
+
+- **會話管理**：`createDirectSession()`, `cleanupExpiredSession()`
+- **語音功能**：`startRecording()`, `stopRecording()`, `speak()`
+- **音效控制**：`enableAudio()`, `mute()`, `unmute()`
+- **狀態監控**：`updateStatus()`, `updateModeStatus()`
+- **事件監聽**：視頻載入事件、LiveKit 狀態監聽
 
 ## 🧪 測試
 
