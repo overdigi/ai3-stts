@@ -858,6 +858,7 @@ export class AI3STTS {
   async createOfficialAvatarSession(options: {
     avatarId: string;
     voiceId?: string;
+    activityIdleTimeout?: number; // 閒置超時（秒），範圍 30-3600，預設 3600
   }): Promise<OfficialAvatarSession> {
     try {
       // 從後端取得 token
@@ -874,11 +875,12 @@ export class AI3STTS {
       }
 
       const token = await response.text();
-      
+
       return new OfficialAvatarSession({
         token,
         avatarId: options.avatarId,
         voiceId: options.voiceId,
+        activityIdleTimeout: options.activityIdleTimeout,
       });
     } catch (error) {
       throw new Error(`建立官方 Avatar 會話失敗: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -892,6 +894,7 @@ export class OfficialAvatarSession {
   private token: string;
   private avatarId: string;
   private voiceId?: string;
+  private activityIdleTimeout: number;
   private stream: MediaStream | null = null;
   private sessionState: 'inactive' | 'connecting' | 'connected' = 'inactive';
   private mediaContainer?: HTMLElement;
@@ -900,10 +903,13 @@ export class OfficialAvatarSession {
     token: string;
     avatarId: string;
     voiceId?: string;
+    activityIdleTimeout?: number;
   }) {
     this.token = options.token;
     this.avatarId = options.avatarId;
     this.voiceId = options.voiceId;
+    this.activityIdleTimeout = options.activityIdleTimeout || 3600; // 預設 1 小時
+    console.log(`[OfficialAvatarSession] Constructor - activityIdleTimeout: ${this.activityIdleTimeout} 秒`);
   }
 
   // 初始化並啟動 Avatar
@@ -923,7 +929,7 @@ export class OfficialAvatarSession {
 
       // 設定事件監聽
       this.avatarRef.on(StreamingEvents.STREAM_READY, ({ detail }) => {
-        console.log('[OfficialAvatarSession] Stream ready');
+        console.log('[OfficialAvatarSession] ⏱️ Stream ready at:', new Date().toISOString());
         this.stream = detail;
         this.sessionState = 'connected';
         
@@ -934,7 +940,7 @@ export class OfficialAvatarSession {
       });
 
       this.avatarRef.on(StreamingEvents.STREAM_DISCONNECTED, () => {
-        console.log('[OfficialAvatarSession] Stream disconnected');
+        console.log('[OfficialAvatarSession] ⏱️ Stream disconnected at:', new Date().toISOString());
         this.sessionState = 'inactive';
       });
 
@@ -952,10 +958,22 @@ export class OfficialAvatarSession {
         sttSettings: {
           provider: STTProvider.DEEPGRAM,
         },
+        activityIdleTimeout: this.activityIdleTimeout, // 使用可設定的閒置超時
       };
+
+      const startTime = Date.now();
+      console.log(`[OfficialAvatarSession] ⏱️ createStartAvatar 開始:`, new Date().toISOString());
+      console.log(`[OfficialAvatarSession] createStartAvatar config:`, JSON.stringify({
+        avatarName: config.avatarName,
+        quality: config.quality,
+        activityIdleTimeout: config.activityIdleTimeout
+      }));
 
       // 啟動 Avatar
       await this.avatarRef.createStartAvatar(config);
+
+      const elapsed = Date.now() - startTime;
+      console.log(`[OfficialAvatarSession] ⏱️ createStartAvatar 完成，耗時 ${elapsed}ms`);
       
     } catch (error) {
       this.sessionState = 'inactive';

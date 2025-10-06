@@ -675,13 +675,20 @@ var Avatar = {
                 throw new Error('AI3STTS 客戶端未初始化');
             }
 
+            // 計算 activityIdleTimeout（毫秒轉秒）
+            const activityIdleTimeout = options.timeout
+                ? Math.floor(options.timeout / 1000)
+                : 3600; // 預設 3600 秒（1 小時）
+
             // 使用官方 SDK 建立會話
             this.directSession = await this.client.createOfficialAvatarSession({
                 avatarId: this.avatarId,
                 voiceId: this.voiceId,
+                activityIdleTimeout: activityIdleTimeout,
             });
 
             console.log('[Avatar.createDirectSession] ✅ 官方 SDK 會話建立成功');
+            console.log(`[Avatar.createDirectSession] ⏰ 閒置超時設定: ${activityIdleTimeout} 秒`);
 
             // 設定會話超時管理
             this.sessionCreatedAt = new Date();
