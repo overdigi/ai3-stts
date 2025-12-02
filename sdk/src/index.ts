@@ -944,6 +944,26 @@ export class OfficialAvatarSession {
         this.sessionState = 'inactive';
       });
 
+      // Avatar 開始說話
+      this.avatarRef.on(StreamingEvents.AVATAR_START_TALKING, () => {
+        console.log('[OfficialAvatarSession] 🗣️ Avatar 開始說話');
+      });
+
+      // Avatar 停止說話
+      this.avatarRef.on(StreamingEvents.AVATAR_STOP_TALKING, () => {
+        console.log('[OfficialAvatarSession] 🤫 Avatar 停止說話');
+      });
+
+      // 用戶開始說話（STT 偵測到聲音）
+      this.avatarRef.on(StreamingEvents.USER_START, () => {
+        console.log('[OfficialAvatarSession] 👤 USER_START - STT 偵測到用戶說話');
+      });
+
+      // 用戶停止說話
+      this.avatarRef.on(StreamingEvents.USER_STOP, () => {
+        console.log('[OfficialAvatarSession] 👤 USER_STOP - 用戶停止說話');
+      });
+
       // 建立 Avatar 配置
       const config: StartAvatarRequest = {
         quality: AvatarQuality.Low,
@@ -953,7 +973,7 @@ export class OfficialAvatarSession {
           emotion: VoiceEmotion.EXCITED,
           voiceId: this.voiceId,
         } : undefined,
-        language: "en",
+        language: "zh",
         voiceChatTransport: VoiceChatTransport.WEBSOCKET,
         sttSettings: {
           provider: STTProvider.DEEPGRAM,
@@ -981,7 +1001,25 @@ export class OfficialAvatarSession {
     }
   }
 
-  // 語音合成
+  // 用句號分段（中文句號「。」或英文句號「.」）
+  private splitTextBySentence(text: string): string[] {
+    // 用句號分割，保留句號
+    const sentences: string[] = [];
+
+    // 匹配句號（中文或英文）並保留
+    const parts = text.split(/(?<=[。.])/);
+
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (trimmed) {
+        sentences.push(trimmed);
+      }
+    }
+
+    return sentences;
+  }
+
+  // 語音合成（按句號分段播放）
   async speak(text: string): Promise<void> {
     if (!this.avatarRef) {
       throw new Error('Avatar 尚未初始化');
@@ -991,15 +1029,49 @@ export class OfficialAvatarSession {
       throw new Error(`Avatar 狀態不正確: ${this.sessionState}`);
     }
 
-    try {
-      await this.avatarRef.speak({
-        text: text,
-        taskType: TaskType.REPEAT,
-        taskMode: TaskMode.ASYNC,
-      });
-    } catch (error) {
-      throw new Error(`語音合成失敗: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    // 用句號分段
+    const sentences = this.splitTextBySentence(text);
+    const sentenceCount = sentences.length;
+
+    console.log(`[OfficialAvatarSession] 📝 文字分析: 共 ${sentenceCount} 個句子，總長度: ${text.length} 字元`);
+
+    // 如果只有一個句子，直接播放
+    if (sentenceCount <= 1) {
+      try {
+        console.log(`[OfficialAvatarSession] 🎤 播放單一句子，長度: ${text.length} 字元`);
+        await this.avatarRef.speak({
+          text: text,
+          taskType: TaskType.REPEAT,
+          taskMode: TaskMode.SYNC,
+        });
+        console.log('[OfficialAvatarSession] ✅ 播放完成');
+      } catch (error) {
+        throw new Error(`語音合成失敗: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      return;
     }
+
+    // 多個句子，逐句播放
+    console.log(`[OfficialAvatarSession] 🎬 開始逐句播放...`);
+
+    for (let i = 0; i < sentences.length; i++) {
+      const sentence = sentences[i];
+      console.log(`[OfficialAvatarSession] 🎤 播放第 ${i + 1}/${sentenceCount} 句，長度: ${sentence.length} 字元`);
+      console.log(`[OfficialAvatarSession] 📄 內容: ${sentence.substring(0, 50)}${sentence.length > 50 ? '...' : ''}`);
+
+      try {
+        await this.avatarRef.speak({
+          text: sentence,
+          taskType: TaskType.REPEAT,
+          taskMode: TaskMode.SYNC,
+        });
+        console.log(`[OfficialAvatarSession] ✅ 第 ${i + 1}/${sentenceCount} 句完成`);
+      } catch (error) {
+        throw new Error(`語音合成失敗 (第 ${i + 1} 句): ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    console.log(`[OfficialAvatarSession] ✅ 全部 ${sentenceCount} 句播放完成`);
   }
 
   // 停止會話
