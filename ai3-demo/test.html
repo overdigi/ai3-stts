@@ -350,6 +350,67 @@
             <div class="panel-content">
                 <!-- 測試控制 -->
                 <div class="test-controls">
+                    <!-- HeyGen 參數設定 -->
+                    <div class="control-group" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #dee2e6;">
+                        <h3 style="margin-bottom: 12px;">⚙️ HeyGen 可用參數</h3>
+
+                        <!-- 第一行：畫質和語音情緒 -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 11px; color: #6c757d; display: block; margin-bottom: 3px;">畫質 (Quality)</label>
+                                <select id="heygen-quality" style="width: 100%; padding: 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px; background: white;">
+                                    <option value="low">Low (360p/500kbps)</option>
+                                    <option value="medium">Medium (480p/1000kbps)</option>
+                                    <option value="high">High (720p/2000kbps)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 11px; color: #6c757d; display: block; margin-bottom: 3px;">語音情緒 (Emotion)</label>
+                                <select id="heygen-emotion" style="width: 100%; padding: 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px; background: white;">
+                                    <option value="excited">Excited（興奮）</option>
+                                    <option value="friendly">Friendly（友善）</option>
+                                    <option value="serious">Serious（嚴肅）</option>
+                                    <option value="soothing">Soothing（舒緩）</option>
+                                    <option value="broadcaster">Broadcaster（播報員）</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 第二行：語速 -->
+                        <div style="margin-top: 10px;">
+                            <label style="font-size: 11px; color: #6c757d; display: block; margin-bottom: 3px;">語速 (Rate): <span id="rate-value">1.0</span>x</label>
+                            <input type="range" id="heygen-rate" min="0.5" max="1.5" step="0.1" value="1.0"
+                                style="width: 100%;" oninput="document.getElementById('rate-value').textContent = this.value">
+                        </div>
+
+                        <!-- 第三行：閒置超時 -->
+                        <div style="margin-top: 10px;">
+                            <label style="font-size: 11px; color: #6c757d; display: block; margin-bottom: 3px;">閒置超時 (activityIdleTimeout): <span id="idle-timeout-value">120</span> 秒</label>
+                            <input type="range" id="heygen-idle-timeout" min="30" max="3600" step="30" value="120"
+                                style="width: 100%;" oninput="document.getElementById('idle-timeout-value').textContent = this.value">
+                            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #999;">
+                                <span>30秒</span>
+                                <span>3600秒 (1小時)</span>
+                            </div>
+                        </div>
+
+                        <!-- 操作按鈕 -->
+                        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #dee2e6;">
+                            <button class="test-btn test-btn-primary" onclick="applyHeyGenParams()" title="套用參數並重新建立會話">
+                                🔄 套用參數
+                            </button>
+                            <button class="test-btn test-btn-secondary" onclick="showCurrentParams()" title="顯示目前設定的參數">
+                                📋 顯示參數
+                            </button>
+                            <button class="test-btn test-btn-secondary" onclick="resetHeyGenParams()" title="重置為預設值">
+                                ↩️ 重置
+                            </button>
+                        </div>
+                        <div style="margin-top: 6px; font-size: 10px; color: #6c757d;">
+                            💡 修改參數後需按「套用參數」重新建立會話才會生效
+                        </div>
+                    </div>
+
                     <div class="control-group">
                         <h3>對話控制</h3>
                         <button class="test-btn test-btn-primary" onclick="testStartConversation()">
@@ -842,6 +903,83 @@
             } else {
                 TestUtils.log('❌ 沒有活動的會話或相關方法未找到');
             }
+        }
+
+        // ======== HeyGen 參數設定函數 ========
+
+        // 取得當前 HeyGen 參數設定
+        function getHeyGenParams() {
+            return {
+                quality: document.getElementById('heygen-quality').value,
+                emotion: document.getElementById('heygen-emotion').value,
+                rate: parseFloat(document.getElementById('heygen-rate').value),
+                activityIdleTimeout: parseInt(document.getElementById('heygen-idle-timeout').value)
+            };
+        }
+
+        // 套用 HeyGen 參數
+        async function applyHeyGenParams() {
+            TestUtils.logFunctionCall('applyHeyGenParams', '套用 HeyGen 參數');
+
+            const params = getHeyGenParams();
+            TestUtils.log('📋 新參數設定:', params);
+
+            try {
+                // 停止現有會話
+                if (Avatar && Avatar.directSession) {
+                    TestUtils.log('🔄 停止現有會話...');
+                    await Avatar.stopConversation();
+                }
+
+                // 更新 Avatar 設定
+                if (Avatar) {
+                    Avatar.heygenParams = params;
+                    TestUtils.log('✅ 參數已儲存到 Avatar.heygenParams');
+                    TestUtils.log('💡 請點擊「開始對話」以使用新參數建立會話');
+                }
+            } catch (error) {
+                TestUtils.log('❌ 套用參數失敗:', error.message);
+            }
+        }
+
+        // 顯示當前參數
+        function showCurrentParams() {
+            TestUtils.logFunctionCall('showCurrentParams', '顯示當前參數');
+
+            const params = getHeyGenParams();
+            TestUtils.log('📋 當前 UI 參數設定:', params);
+
+            if (Avatar && Avatar.heygenParams) {
+                TestUtils.log('📋 已套用的參數 (Avatar.heygenParams):', Avatar.heygenParams);
+            } else {
+                TestUtils.log('ℹ️ 尚未套用參數，使用預設值');
+            }
+
+            // 顯示畫質說明
+            const qualityInfo = {
+                'low': 'Low: 360p / 500kbps - 省流量',
+                'medium': 'Medium: 480p / 1000kbps - 平衡',
+                'high': 'High: 720p / 2000kbps - 最清晰'
+            };
+            TestUtils.log('📺 畫質說明:', qualityInfo[params.quality]);
+        }
+
+        // 重置參數為預設值
+        function resetHeyGenParams() {
+            TestUtils.logFunctionCall('resetHeyGenParams', '重置參數');
+
+            document.getElementById('heygen-quality').value = 'low';
+            document.getElementById('heygen-emotion').value = 'excited';
+            document.getElementById('heygen-rate').value = '1.0';
+            document.getElementById('rate-value').textContent = '1.0';
+            document.getElementById('heygen-idle-timeout').value = '120';
+            document.getElementById('idle-timeout-value').textContent = '120';
+
+            if (Avatar) {
+                Avatar.heygenParams = null;
+            }
+
+            TestUtils.log('✅ 參數已重置為預設值');
         }
 
         // ======== 新功能測試函數 ========

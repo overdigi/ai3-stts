@@ -670,22 +670,32 @@ var Avatar = {
     createDirectSession: async function(options = {}) {
         try {
             console.log('[Avatar.createDirectSession] 建立 HeyGen 直接會話...');
-            
+
             if (!this.client) {
                 throw new Error('AI3STTS 客戶端未初始化');
             }
 
-            // 計算 activityIdleTimeout（毫秒轉秒）
-            const activityIdleTimeout = options.timeout
-                ? Math.floor(options.timeout / 1000)
-                : 3600; // 預設 3600 秒（1 小時）
+            // 合併 UI 設定的參數和傳入的 options
+            const params = this.heygenParams || {};
 
-            // 使用官方 SDK 建立會話
-            this.directSession = await this.client.createOfficialAvatarSession({
+            // 計算 activityIdleTimeout（優先使用 UI 設定，其次是 options，最後是預設值）
+            const activityIdleTimeout = params.activityIdleTimeout
+                || (options.timeout ? Math.floor(options.timeout / 1000) : 120); // 預設 120 秒
+
+            // 建立會話參數
+            const sessionOptions = {
                 avatarId: this.avatarId,
                 voiceId: this.voiceId,
                 activityIdleTimeout: activityIdleTimeout,
-            });
+                quality: params.quality || 'low',
+                emotion: params.emotion || 'excited',
+                rate: params.rate || 1.0,
+            };
+
+            console.log('[Avatar.createDirectSession] 會話參數:', sessionOptions);
+
+            // 使用官方 SDK 建立會話
+            this.directSession = await this.client.createOfficialAvatarSession(sessionOptions);
 
             console.log('[Avatar.createDirectSession] ✅ 官方 SDK 會話建立成功');
             console.log(`[Avatar.createDirectSession] ⏰ 閒置超時設定: ${activityIdleTimeout} 秒`);

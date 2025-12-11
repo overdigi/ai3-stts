@@ -858,7 +858,13 @@ export class AI3STTS {
   async createOfficialAvatarSession(options: {
     avatarId: string;
     voiceId?: string;
-    activityIdleTimeout?: number; // 閒置超時（秒），範圍 30-3600，預設 3600
+    activityIdleTimeout?: number; // 閒置超時（秒），範圍 30-3600，預設 120
+    quality?: 'low' | 'medium' | 'high'; // 畫質
+    emotion?: 'excited' | 'serious' | 'friendly' | 'soothing' | 'broadcaster'; // 語音情緒
+    rate?: number; // 語速 0.5-1.5
+    language?: string; // 語言
+    knowledgeBase?: string; // 知識庫/系統提示詞
+    knowledgeId?: string; // 知識庫 ID
   }): Promise<OfficialAvatarSession> {
     try {
       // 從後端取得 token
@@ -881,6 +887,12 @@ export class AI3STTS {
         avatarId: options.avatarId,
         voiceId: options.voiceId,
         activityIdleTimeout: options.activityIdleTimeout,
+        quality: options.quality,
+        emotion: options.emotion,
+        rate: options.rate,
+        language: options.language,
+        knowledgeBase: options.knowledgeBase,
+        knowledgeId: options.knowledgeId,
       });
     } catch (error) {
       throw new Error(`建立官方 Avatar 會話失敗: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -895,6 +907,12 @@ export class OfficialAvatarSession {
   private avatarId: string;
   private voiceId?: string;
   private activityIdleTimeout: number;
+  private quality: 'low' | 'medium' | 'high';
+  private emotion: 'excited' | 'serious' | 'friendly' | 'soothing' | 'broadcaster';
+  private rate: number;
+  private language: string;
+  private knowledgeBase?: string;
+  private knowledgeId?: string;
   private stream: MediaStream | null = null;
   private sessionState: 'inactive' | 'connecting' | 'connected' = 'inactive';
   private mediaContainer?: HTMLElement;
@@ -904,12 +922,33 @@ export class OfficialAvatarSession {
     avatarId: string;
     voiceId?: string;
     activityIdleTimeout?: number;
+    quality?: 'low' | 'medium' | 'high';
+    emotion?: 'excited' | 'serious' | 'friendly' | 'soothing' | 'broadcaster';
+    rate?: number;
+    language?: string;
+    knowledgeBase?: string;
+    knowledgeId?: string;
   }) {
     this.token = options.token;
     this.avatarId = options.avatarId;
     this.voiceId = options.voiceId;
-    this.activityIdleTimeout = options.activityIdleTimeout || 3600; // 預設 1 小時
-    console.log(`[OfficialAvatarSession] Constructor - activityIdleTimeout: ${this.activityIdleTimeout} 秒`);
+    this.activityIdleTimeout = options.activityIdleTimeout || 120; // 預設 120 秒
+    this.quality = options.quality || 'low';
+    this.emotion = options.emotion || 'excited';
+    this.rate = options.rate || 1.0;
+    this.language = options.language || 'zh';
+    this.knowledgeBase = options.knowledgeBase;
+    this.knowledgeId = options.knowledgeId;
+
+    console.log(`[OfficialAvatarSession] Constructor - 參數設定:`, {
+      activityIdleTimeout: this.activityIdleTimeout,
+      quality: this.quality,
+      emotion: this.emotion,
+      rate: this.rate,
+      language: this.language,
+      knowledgeBase: this.knowledgeBase ? '已設定' : '未設定',
+      knowledgeId: this.knowledgeId || '未設定'
+    });
   }
 
   // 初始化並啟動 Avatar
@@ -964,21 +1003,40 @@ export class OfficialAvatarSession {
         console.log('[OfficialAvatarSession] 👤 USER_STOP - 用戶停止說話');
       });
 
+      // 將 quality 字串轉換為 AvatarQuality 枚舉
+      const qualityMap: Record<string, AvatarQuality> = {
+        'low': AvatarQuality.Low,
+        'medium': AvatarQuality.Medium,
+        'high': AvatarQuality.High,
+      };
+
+      // 將 emotion 字串轉換為 VoiceEmotion 枚舉
+      const emotionMap: Record<string, VoiceEmotion> = {
+        'excited': VoiceEmotion.EXCITED,
+        'serious': VoiceEmotion.SERIOUS,
+        'friendly': VoiceEmotion.FRIENDLY,
+        'soothing': VoiceEmotion.SOOTHING,
+        'broadcaster': VoiceEmotion.BROADCASTER,
+      };
+
       // 建立 Avatar 配置
+      // 注意：voice 設定即使沒有 voiceId 也需要傳入 rate 和 emotion
       const config: StartAvatarRequest = {
-        quality: AvatarQuality.Low,
+        quality: qualityMap[this.quality] || AvatarQuality.Low,
         avatarName: this.avatarId,
-        voice: this.voiceId ? {
-          rate: 1.0,
-          emotion: VoiceEmotion.EXCITED,
-          voiceId: this.voiceId,
-        } : undefined,
-        language: "zh",
+        voice: {
+          rate: this.rate,
+          emotion: emotionMap[this.emotion] || VoiceEmotion.EXCITED,
+          ...(this.voiceId && { voiceId: this.voiceId }),
+        },
+        language: this.language, // 主要影響 STT 語言
         voiceChatTransport: VoiceChatTransport.WEBSOCKET,
         sttSettings: {
           provider: STTProvider.DEEPGRAM,
         },
-        activityIdleTimeout: this.activityIdleTimeout, // 使用可設定的閒置超時
+        activityIdleTimeout: this.activityIdleTimeout,
+        knowledgeBase: this.knowledgeBase,
+        knowledgeId: this.knowledgeId,
       };
 
       const startTime = Date.now();
@@ -986,7 +1044,15 @@ export class OfficialAvatarSession {
       console.log(`[OfficialAvatarSession] createStartAvatar config:`, JSON.stringify({
         avatarName: config.avatarName,
         quality: config.quality,
-        activityIdleTimeout: config.activityIdleTimeout
+        language: config.language,
+        activityIdleTimeout: config.activityIdleTimeout,
+        voice: config.voice ? {
+          rate: config.voice.rate,
+          emotion: config.voice.emotion,
+          voiceId: config.voice.voiceId ? '已設定' : '未設定'
+        } : '未設定',
+        knowledgeBase: config.knowledgeBase ? '已設定' : '未設定',
+        knowledgeId: config.knowledgeId || '未設定'
       }));
 
       // 啟動 Avatar
