@@ -2,7 +2,9 @@
 window.Util = {
     config: {
         avaterApiUrl: 'http://localhost:3000',
-        avaterApiKey: 'test-api-key',
+        avaterApiKey: 'kLaBJtvyYqv',
+        avatarId: '1be5d18692ca4b33b2af982cbd9caa83',
+        voiceId: '4158cf2ef85d4ccc856aacb1c47dbb0c',
         autoStartConversation: false, // 預設不自動開始，透過測試按鈕控制
     },
     
@@ -30,15 +32,15 @@ window.WebChat = {
         // 模擬延遲
         setTimeout(() => {
             if (options.url.includes('/heygen/config')) {
-                // 模擬成功的角色配置回應（使用後端環境變數中的 Avatar ID）
+                // 模擬成功的角色配置回應（從 Util.config 讀取）
                 const mockResponse = {
                     avatars: [{
-                        id: 'bc13dd17488a44ffa46f0ccb26ba613a',
+                        id: Util.config.avatarId,
                         name: '1966長照專線',
-                        defaultVoiceId: '3b1633a466c44379bf8b5a2884727588'
+                        defaultVoiceId: Util.config.voiceId
                     }]
                 };
-                
+
                 console.log('模擬 Avatar 配置回應:', mockResponse);
                 if (options.success) {
                     options.success(mockResponse);

@@ -997,11 +997,11 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-api-key': 'test-key'
+                        'x-api-key': Util.getConfig('avaterApiKey')
                     },
                     body: JSON.stringify({
-                        avatarId: 'bc13dd17488a44ffa46f0ccb26ba613a',
-                        voiceId: '3b1633a466c44379bf8b5a2884727588',
+                        avatarId: Util.getConfig('avatarId'),
+                        voiceId: Util.getConfig('voiceId'),
                         timeout: timeout
                     })
                 });
@@ -1040,7 +1040,7 @@
                 const response = await fetch(`${API_BASE_URL}/heygen-direct/session/${sessionId}/keepalive`, {
                     method: 'POST',
                     headers: {
-                        'x-api-key': 'test-api-key'
+                        'x-api-key': Util.getConfig('avaterApiKey')
                     }
                 });
 

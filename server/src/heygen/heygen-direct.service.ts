@@ -81,20 +81,40 @@ export class HeygenDirectService {
     this.sessions.set(sessionId, session);
 
     try {
-      // 建立 HeyGen LiveKit 會話
-      this.logger.log(`調用 HeyGen API: POST /streaming.new`);
+      // 第一步：生成 access token
+      this.logger.log(`步驟 1: 調用 HeyGen API: POST /streaming.create_token`);
+      const tokenResponse = await this.httpClient.post('/streaming.create_token');
+
+      this.logger.log(`Token 生成響應狀態: ${tokenResponse.status}`);
+      this.logger.log(`Token 生成響應數據:`, JSON.stringify(tokenResponse.data, null, 2));
+
+      // 檢查 API v2 格式：{ error: null, data: { token: "..." } }
+      if (tokenResponse.data.error || !tokenResponse.data.data?.token) {
+        throw new Error(`Token 生成失敗: ${tokenResponse.data.error || '未知錯誤'}`);
+      }
+
+      const accessToken = tokenResponse.data.data.token;
+      this.logger.log(`✅ Access Token 生成成功: ${accessToken.substring(0, 20)}...`);
+
+      // 第二步：使用 token 建立 HeyGen LiveKit 會話
+      this.logger.log(`步驟 2: 調用 HeyGen API: POST /streaming.new`);
       this.logger.log(`請求參數: avatar_id=${options.avatarId}, voice_id=${options.voiceId}`);
-      
+
       const requestBody: any = {
         version: "v2",
         avatar_id: options.avatarId,
       };
-      
+
       if (options.voiceId) {
         requestBody.voice = { voice_id: options.voiceId };
       }
-      
-      const response = await this.httpClient.post('/streaming.new', requestBody);
+
+      // 使用生成的 token
+      const response = await this.httpClient.post('/streaming.new', requestBody, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        }
+      });
 
       this.logger.log(`HeyGen API 響應狀態: ${response.status}`);
       this.logger.log(`HeyGen API 響應數據:`, JSON.stringify(response.data, null, 2));
@@ -359,44 +379,18 @@ export class HeygenDirectService {
   // 建立 HeyGen Streaming Token（官方 SDK 方式）
   async createStreamingToken(avatarId: string): Promise<string> {
     this.logger.log(`建立 HeyGen Streaming Token for avatar: ${avatarId}`);
-    
+
     try {
-      // 根據 avatarId 找到對應的 API Key（參考官方 Demo 做法）
-      const AVATARS = [
-        {
-          avatar_id: "bc13dd17488a44ffa46f0ccb26ba613a",
-          name: "WILL", 
-          api_key_env: "HEYGEN_API_KEY_WILL",
-        },
-        {
-          avatar_id: "253b320ceb964b87b10c858a7af25348", 
-          name: "CRCH",
-          api_key_env: "HEYGEN_API_KEY_CRCH",
-        },
-      ];
-      
-      const avatar = AVATARS.find((a) => a.avatar_id === avatarId);
-      
-      if (!avatar || !avatar.api_key_env) {
-        throw new Error(`No API key env found for avatar: ${avatarId}`);
-      }
-      
-      // 從環境變數中讀取對應的 API Key
-      const apiKey = process.env[avatar.api_key_env];
-      
-      if (!apiKey) {
-        throw new Error(`Environment variable ${avatar.api_key_env} not found`);
-      }
-      
-      this.logger.log(`Using API key from ${avatar.api_key_env} for ${avatar.name} (${avatarId})`);
-      
+      // 直接使用環境變數中的 HEYGEN_API_KEY
+      this.logger.log(`使用 HEYGEN_API_KEY 為 avatar ${avatarId} 建立 token`);
+
       // 使用 v1 API 端點建立 token
       const response = await axios.post(
         `${this.heygenApiUrl}/streaming.create_token`,
         {},
         {
           headers: {
-            'x-api-key': apiKey,
+            'x-api-key': this.heygenApiKey,
           },
         }
       );
