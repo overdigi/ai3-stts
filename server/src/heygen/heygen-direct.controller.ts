@@ -180,7 +180,7 @@ export class HeygenDirectController {
   ) {
     try {
       const avatarId = createTokenDto.avatarId;
-      
+
       if (!avatarId) {
         throw new Error('Avatar ID is required');
       }
@@ -196,5 +196,16 @@ export class HeygenDirectController {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  @Get('config')
+  async getConfig() {
+    return {
+      success: true,
+      config: {
+        avatarId: process.env.AVATAR_ID,
+        voiceId: process.env.VOICE_ID,
+      },
+    };
   }
 }

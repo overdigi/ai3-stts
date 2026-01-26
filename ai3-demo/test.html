@@ -802,7 +802,11 @@
         // 直接呼叫 API 進行語音合成
 
         // 文字輸入處理
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', async function () {
+            // 載入後端配置
+            TestUtils.log('🔧 正在從後端載入配置...');
+            await Util.loadConfigFromBackend();
+
             const textInput = document.getElementById('text-input');
             const inputCounter = document.getElementById('input-counter');
             const sendButton = document.getElementById('send-button');

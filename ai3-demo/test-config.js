@@ -2,9 +2,9 @@
 window.Util = {
     config: {
         avaterApiUrl: 'http://localhost:3000',
-        avaterApiKey: 'kLaBJtvyYqv',
-        avatarId: '1be5d18692ca4b33b2af982cbd9caa83',
-        voiceId: '4158cf2ef85d4ccc856aacb1c47dbb0c',
+        avaterApiKey: 'ai3test', // 對應後端 .env 的 API_KEY（用於前端驗證）
+        avatarId: null, // 將從後端 API 載入
+        voiceId: null, // 將從後端 API 載入
         autoStartConversation: false, // 預設不自動開始，透過測試按鈕控制
     },
     
@@ -21,6 +21,27 @@ window.Util = {
     setConfig: function(key, value) {
         console.log(`Util.setConfig("${key}", ${value})`);
         this.config[key] = value;
+    },
+
+    // 從後端載入配置
+    loadConfigFromBackend: async function() {
+        try {
+            const response = await fetch(`${this.config.avaterApiUrl}/heygen-direct/config`);
+            const data = await response.json();
+
+            if (data.success && data.config) {
+                this.config.avatarId = data.config.avatarId;
+                this.config.voiceId = data.config.voiceId;
+                console.log('✅ 配置已從後端載入:', data.config);
+                return true;
+            } else {
+                console.error('❌ 後端配置載入失敗');
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ 載入後端配置時發生錯誤:', error);
+            return false;
+        }
     }
 };
 
