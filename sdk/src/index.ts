@@ -290,8 +290,24 @@ export class AI3STTS {
       });
     }
 
-    // 4. Start session (SDK handles /v1/sessions/start + LiveKit connection)
-    await session.start();
+    // 4. Start session with retry (API may need time to release previous session)
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await session.start();
+        break;
+      } catch (startError) {
+        if (attempt < maxRetries) {
+          console.warn(
+            `[AI3STTS] Session start attempt ${attempt} failed, retrying in 3s...`,
+            startError,
+          );
+          await new Promise((r) => setTimeout(r, 3000));
+        } else {
+          throw startError;
+        }
+      }
+    }
     console.log(`[AI3STTS] LiveAvatar session started: ${sessionId}`);
 
     // 5. Attach media element after session is ready
