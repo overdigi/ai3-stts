@@ -14,7 +14,11 @@ import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
 @WebSocketGateway({
   namespace: 'stt',
   cors: {
-    origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
+    origin: process.env.CORS_ORIGIN?.split(',') || [
+      'http://localhost:3000',
+      'http://localhost:8080',
+      'http://127.0.0.1:8080'
+    ],
     methods: ['GET', 'POST'],
     credentials: true,
   },

@@ -1,12 +1,20 @@
 import { Module } from '@nestjs/common';
-import { HeygenController } from './heygen.controller';
-import { HeygenService } from './heygen.service';
-import { HeygenStreamingController } from './heygen-streaming.controller';
-import { HeygenStreamingService } from './heygen-streaming.service';
+import { HeygenDirectController } from './heygen-direct.controller';
+import { HeygenDirectService } from './heygen-direct.service';
+import { HeygenDirectCleanupService } from './heygen-direct-cleanup.service';
+import { HeygenDirectGateway } from './heygen-direct.gateway';
 
 @Module({
-  controllers: [HeygenController, HeygenStreamingController],
-  providers: [HeygenService, HeygenStreamingService],
-  exports: [HeygenService, HeygenStreamingService],
+  controllers: [
+    HeygenDirectController,
+  ],
+  providers: [
+    HeygenDirectService,
+    HeygenDirectCleanupService,
+    HeygenDirectGateway,
+  ],
+  exports: [
+    HeygenDirectService,
+  ],
 })
 export class HeygenModule {}
