@@ -42,32 +42,30 @@ export class LiveavatarService {
   async createSessionToken(options: CreateTokenOptions): Promise<CreateTokenResult> {
     this.logger.log(`建立 LiveAvatar session token: avatarId=${options.avatarId}`);
 
+    const persona: Record<string, unknown> = {};
+    if (options.voiceId) {
+      persona.voice_id = options.voiceId;
+    }
+    if (options.language) {
+      persona.language = options.language;
+    }
+
     const requestBody: Record<string, unknown> = {
       mode: 'FULL',
       avatar_id: options.avatarId,
       is_sandbox: options.isSandbox ?? false,
       interactivity_type: 'CONVERSATIONAL',
+      avatar_persona: persona,
     };
 
     if (options.quality) {
       requestBody.video_settings = { quality: options.quality };
     }
 
-    if (options.voiceId || options.language) {
-      const persona: Record<string, unknown> = {};
-      if (options.voiceId) {
-        persona.voice_id = options.voiceId;
-      }
-      if (options.language) {
-        persona.language = options.language;
-      }
-      requestBody.avatar_persona = persona;
-    }
-
     try {
       const response = await this.httpClient.post('/v1/sessions/token', requestBody);
 
-      if (response.data.code !== 100 || !response.data.data) {
+      if (response.data.code !== 1000 || !response.data.data) {
         throw new Error(
           `LiveAvatar API 錯誤: ${response.data.message || '未知錯誤'}`,
         );
