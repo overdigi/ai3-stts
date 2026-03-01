@@ -74,7 +74,8 @@ export class LiveavatarService {
     };
 
     if (options.maxSessionDuration) {
-      requestBody.max_session_duration = Math.min(options.maxSessionDuration, 1200);
+      const maxAllowed = options.isSandbox ? 60 : 1200;
+      requestBody.max_session_duration = Math.min(options.maxSessionDuration, maxAllowed);
     }
     if (options.quality) {
       requestBody.video_settings = { quality: options.quality };
