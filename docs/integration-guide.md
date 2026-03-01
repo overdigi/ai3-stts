@@ -116,6 +116,21 @@ Server 只有兩個端點：
 <!-- Socket.IO（STT 用） -->
 <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 
+<!-- EventEmitter polyfill（LiveAvatar SDK UMD 需要） -->
+<script>
+window.events$1 = { EventEmitter: class EventEmitter {
+    constructor() { this._e = {}; }
+    on(e, f) { (this._e[e] = this._e[e] || []).push(f); return this; }
+    off(e, f) { const l = this._e[e]; if (l) this._e[e] = l.filter(x => x !== f); return this; }
+    emit(e, ...a) { (this._e[e] || []).forEach(f => f(...a)); return this; }
+    once(e, f) { const w = (...a) => { this.off(e, w); f(...a); }; return this.on(e, w); }
+    removeAllListeners(e) { if (e) delete this._e[e]; else this._e = {}; return this; }
+    addListener(e, f) { return this.on(e, f); }
+    removeListener(e, f) { return this.off(e, f); }
+    listenerCount(e) { return (this._e[e] || []).length; }
+}};
+</script>
+
 <!-- LiveAvatar SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@heygen/liveavatar-web-sdk/dist/index.umd.js"></script>
 
@@ -253,11 +268,27 @@ const session = await client.createLiveAvatarSession({
 
 ### LiveAvatar SDK 載入失敗
 
-確認有在 HTML 中載入 LiveAvatar SDK CDN：
+LiveAvatar SDK 的 UMD bundle 依賴 Node.js `events` 模組，需要在載入前提供 polyfill：
 
 ```html
+<!-- 必須在 LiveAvatar SDK 之前載入 -->
+<script>
+window.events$1 = { EventEmitter: class EventEmitter {
+    constructor() { this._e = {}; }
+    on(e, f) { (this._e[e] = this._e[e] || []).push(f); return this; }
+    off(e, f) { const l = this._e[e]; if (l) this._e[e] = l.filter(x => x !== f); return this; }
+    emit(e, ...a) { (this._e[e] || []).forEach(f => f(...a)); return this; }
+    once(e, f) { const w = (...a) => { this.off(e, w); f(...a); }; return this.on(e, w); }
+    removeAllListeners(e) { if (e) delete this._e[e]; else this._e = {}; return this; }
+    addListener(e, f) { return this.on(e, f); }
+    removeListener(e, f) { return this.off(e, f); }
+    listenerCount(e) { return (this._e[e] || []).length; }
+}};
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@heygen/liveavatar-web-sdk/dist/index.umd.js"></script>
 ```
+
+如果看到 `Cannot read properties of undefined (reading 'EventEmitter')` 錯誤，表示 polyfill 未正確載入。
 
 ### 麥克風無法使用
 
