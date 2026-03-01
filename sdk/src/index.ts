@@ -41,12 +41,20 @@ export interface STTStartOptions {
   language?: string;
 }
 
+export interface VoiceSettings {
+  speed?: number;
+  stability?: number;
+  style?: number;
+}
+
 export interface LiveAvatarSessionOptions {
   avatarId: string;
   voiceId?: string;
   quality?: 'very_high' | 'high' | 'medium' | 'low';
   isSandbox?: boolean;
   language?: string;
+  maxSessionDuration?: number;
+  voiceSettings?: VoiceSettings;
   mediaElement?: HTMLMediaElement;
   onEvent?: (event: string, data?: any) => void;
 }
@@ -238,6 +246,8 @@ export class AI3STTS {
         quality: options.quality,
         isSandbox: options.isSandbox,
         language: options.language,
+        maxSessionDuration: options.maxSessionDuration,
+        voiceSettings: options.voiceSettings,
       }),
     });
 

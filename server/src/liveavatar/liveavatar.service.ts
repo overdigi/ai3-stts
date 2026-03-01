@@ -1,12 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
 
+export interface VoiceSettings {
+  speed?: number;
+  stability?: number;
+  style?: number;
+}
+
 export interface CreateTokenOptions {
   avatarId: string;
   voiceId?: string;
   quality?: 'very_high' | 'high' | 'medium' | 'low';
   isSandbox?: boolean;
   language?: string;
+  maxSessionDuration?: number;
+  voiceSettings?: VoiceSettings;
 }
 
 export interface CreateTokenResult {
@@ -49,6 +57,13 @@ export class LiveavatarService {
     if (options.language) {
       persona.language = options.language;
     }
+    if (options.voiceSettings) {
+      const vs: Record<string, unknown> = {};
+      if (options.voiceSettings.speed != null) vs.speed = options.voiceSettings.speed;
+      if (options.voiceSettings.stability != null) vs.stability = options.voiceSettings.stability;
+      if (options.voiceSettings.style != null) vs.style = options.voiceSettings.style;
+      if (Object.keys(vs).length > 0) persona.voice_settings = vs;
+    }
 
     const requestBody: Record<string, unknown> = {
       mode: 'FULL',
@@ -58,6 +73,9 @@ export class LiveavatarService {
       avatar_persona: persona,
     };
 
+    if (options.maxSessionDuration) {
+      requestBody.max_session_duration = Math.min(options.maxSessionDuration, 1200);
+    }
     if (options.quality) {
       requestBody.video_settings = { quality: options.quality };
     }

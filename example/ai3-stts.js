@@ -140,6 +140,8 @@
                     quality: options.quality,
                     isSandbox: options.isSandbox,
                     language: options.language,
+                    maxSessionDuration: options.maxSessionDuration,
+                    voiceSettings: options.voiceSettings,
                 }),
             });
             if (!response.ok) {

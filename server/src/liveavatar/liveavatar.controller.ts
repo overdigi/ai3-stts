@@ -21,6 +21,8 @@ export class LiveavatarController {
       quality?: 'very_high' | 'high' | 'medium' | 'low';
       isSandbox?: boolean;
       language?: string;
+      maxSessionDuration?: number;
+      voiceSettings?: { speed?: number; stability?: number; style?: number };
     },
   ) {
     try {
@@ -32,10 +34,12 @@ export class LiveavatarController {
 
       const result = await this.liveavatarService.createSessionToken({
         avatarId,
-        voiceId: body.voiceId || process.env.VOICE_ID,
+        voiceId: body.voiceId || process.env.VOICE_ID || undefined,
         quality: body.quality,
         isSandbox: body.isSandbox,
         language: body.language,
+        maxSessionDuration: body.maxSessionDuration,
+        voiceSettings: body.voiceSettings,
       });
 
       return {
