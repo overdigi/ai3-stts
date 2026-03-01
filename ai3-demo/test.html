@@ -386,7 +386,12 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const apiUrl = document.getElementById('api-url').value;
+            // 自動偵測 API URL：localhost 用 3000，部署環境用當前 origin
+            const apiUrlInput = document.getElementById('api-url');
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                apiUrlInput.value = window.location.origin;
+            }
+            const apiUrl = apiUrlInput.value;
             client = new AI3STTS({ apiUrl, apiKey: getApiKey() });
             log('SDK 初始化完成');
             loadConfig();
