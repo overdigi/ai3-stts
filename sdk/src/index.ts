@@ -280,15 +280,15 @@ export class AI3STTS {
       });
     }
 
-    // 4. Attach media element if provided
+    // 4. Start session (SDK handles /v1/sessions/start + LiveKit connection)
+    await session.start();
+    console.log(`[AI3STTS] LiveAvatar session started: ${sessionId}`);
+
+    // 5. Attach media element after session is ready
     if (options.mediaElement) {
       session.attach(options.mediaElement);
       console.log('[AI3STTS] Media element attached');
     }
-
-    // 5. Start session (SDK handles /v1/sessions/start + LiveKit connection)
-    await session.start();
-    console.log(`[AI3STTS] LiveAvatar session started: ${sessionId}`);
 
     // 6. Return handle
     return {
