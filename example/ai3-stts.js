@@ -192,7 +192,12 @@
                     session.interrupt();
                 },
                 async stop() {
-                    await session.stop();
+                    try {
+                        await session.stop();
+                    }
+                    catch (e) {
+                        console.warn(`[AI3STTS] Session stop warning:`, e);
+                    }
                     console.log(`[AI3STTS] LiveAvatar session stopped: ${sessionId}`);
                 },
             };

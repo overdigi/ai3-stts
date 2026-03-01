@@ -410,6 +410,12 @@
         // --- Session ---
         async function startSession() {
             try {
+                // 清理舊 session
+                if (avatarSession) {
+                    try { await avatarSession.stop(); } catch (e) { /* ignore */ }
+                    avatarSession = null;
+                }
+
                 document.getElementById('btn-start').disabled = true;
                 updateSessionStatus('建立中...', '#facc15');
                 log('正在建立 LiveAvatar 會話...');
