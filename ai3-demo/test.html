@@ -242,6 +242,10 @@
                     <label>API URL</label>
                     <input type="text" id="api-url" value="http://localhost:3000">
                 </div>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="text" id="api-key" placeholder="選填，對應 server .env 的 API_KEY">
+                </div>
 
                 <!-- Avatar Config -->
                 <h3 style="font-size: 14px; margin: 15px 0 10px; color: #333;">Avatar 設定</h3>
@@ -377,9 +381,13 @@
         }
 
         // --- Init ---
+        function getApiKey() {
+            return document.getElementById('api-key').value || undefined;
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const apiUrl = document.getElementById('api-url').value;
-            client = new AI3STTS({ apiUrl });
+            client = new AI3STTS({ apiUrl, apiKey: getApiKey() });
             log('SDK 初始化完成');
             loadConfig();
         });
@@ -388,7 +396,7 @@
         async function loadConfig() {
             try {
                 const apiUrl = document.getElementById('api-url').value;
-                client = new AI3STTS({ apiUrl });
+                client = new AI3STTS({ apiUrl, apiKey: getApiKey() });
 
                 const config = await client.getConfig();
                 if (config.avatarId) document.getElementById('avatar-id').value = config.avatarId;
