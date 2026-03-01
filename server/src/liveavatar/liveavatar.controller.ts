@@ -3,8 +3,10 @@ import {
   Post,
   Get,
   Body,
+  Headers,
   HttpException,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { LiveavatarService } from './liveavatar.service';
 
@@ -12,8 +14,15 @@ import { LiveavatarService } from './liveavatar.service';
 export class LiveavatarController {
   constructor(private readonly liveavatarService: LiveavatarService) {}
 
+  private validateApiKey(apiKey: string): void {
+    if (process.env.API_KEY && apiKey !== process.env.API_KEY) {
+      throw new BadRequestException('Invalid API Key');
+    }
+  }
+
   @Post('token')
   async createToken(
+    @Headers('x-api-key') apiKey: string,
     @Body()
     body: {
       avatarId?: string;
@@ -25,6 +34,8 @@ export class LiveavatarController {
       voiceSettings?: { speed?: number; stability?: number; style?: number };
     },
   ) {
+    this.validateApiKey(apiKey);
+
     try {
       const avatarId = body.avatarId || process.env.AVATAR_ID;
 
@@ -58,7 +69,8 @@ export class LiveavatarController {
   }
 
   @Get('config')
-  async getConfig() {
+  async getConfig(@Headers('x-api-key') apiKey: string) {
+    this.validateApiKey(apiKey);
     const config = await this.liveavatarService.getConfig();
     return {
       success: true,
