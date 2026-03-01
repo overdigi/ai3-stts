@@ -59,14 +59,17 @@ async function startSession() {
             throw new Error('Server 未設定 AVATAR_ID');
         }
 
+        const videoEl = document.getElementById('avatar-video');
         avatarSession = await client.createLiveAvatarSession({
             avatarId,
-            voiceId: config.voiceId,
+            voiceId: config.voiceId || undefined,
             quality: 'medium',
+            mediaElement: videoEl,
             onEvent: handleAvatarEvent,
         });
 
-        // Hide placeholder
+        // Show video, hide placeholder
+        videoEl.style.display = 'block';
         document.getElementById('avatar-placeholder').classList.add('hidden');
 
         updateStatus('ready', '已連線');
@@ -87,7 +90,8 @@ async function stopSession() {
             avatarSession = null;
         }
 
-        // Show placeholder again
+        // Hide video, show placeholder
+        document.getElementById('avatar-video').style.display = 'none';
         document.getElementById('avatar-placeholder').classList.remove('hidden');
 
         updateStatus('ready', '已斷線');

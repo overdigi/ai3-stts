@@ -6,7 +6,7 @@ declare global {
     LiveAvatarSDK: {
       LiveAvatarSession: new (
         sessionToken: string,
-        config?: { voiceChat?: boolean },
+        config?: { voiceChat?: boolean | object; apiUrl?: string },
       ) => LiveAvatarSessionInstance;
     };
   }
@@ -17,6 +17,10 @@ interface LiveAvatarSessionInstance {
   stop(): Promise<void>;
   on(event: string, callback: (data?: any) => void): void;
   off(event: string, callback: (data?: any) => void): void;
+  attach(element: HTMLMediaElement): void;
+  message(text: string): void;
+  repeat(text: string): void;
+  interrupt(): void;
 }
 
 // --- Config & Interfaces ---
@@ -43,6 +47,7 @@ export interface LiveAvatarSessionOptions {
   quality?: 'very_high' | 'high' | 'medium' | 'low';
   isSandbox?: boolean;
   language?: string;
+  mediaElement?: HTMLMediaElement;
   onEvent?: (event: string, data?: any) => void;
 }
 
@@ -275,27 +280,25 @@ export class AI3STTS {
       });
     }
 
-    // 4. Start session (SDK handles /v1/sessions/start + LiveKit connection)
+    // 4. Attach media element if provided
+    if (options.mediaElement) {
+      session.attach(options.mediaElement);
+      console.log('[AI3STTS] Media element attached');
+    }
+
+    // 5. Start session (SDK handles /v1/sessions/start + LiveKit connection)
     await session.start();
     console.log(`[AI3STTS] LiveAvatar session started: ${sessionId}`);
 
-    // 5. Return handle
+    // 6. Return handle
     return {
       sessionId,
       session,
       speak(text: string) {
-        // Send command event via LiveKit data channel
-        (session as any).sendEvent?.({
-          event_type: 'avatar.speak_text',
-          session_id: sessionId,
-          text,
-        });
+        session.repeat(text);
       },
       interrupt() {
-        (session as any).sendEvent?.({
-          event_type: 'avatar.interrupt',
-          session_id: sessionId,
-        });
+        session.interrupt();
       },
       async stop() {
         await session.stop();

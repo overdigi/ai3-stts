@@ -171,28 +171,23 @@
                     (_a = options.onEvent) === null || _a === void 0 ? void 0 : _a.call(options, event, eventData);
                 });
             }
-            // 4. Start session (SDK handles /v1/sessions/start + LiveKit connection)
+            // 4. Attach media element if provided
+            if (options.mediaElement) {
+                session.attach(options.mediaElement);
+                console.log('[AI3STTS] Media element attached');
+            }
+            // 5. Start session (SDK handles /v1/sessions/start + LiveKit connection)
             await session.start();
             console.log(`[AI3STTS] LiveAvatar session started: ${sessionId}`);
-            // 5. Return handle
+            // 6. Return handle
             return {
                 sessionId,
                 session,
                 speak(text) {
-                    var _a, _b;
-                    // Send command event via LiveKit data channel
-                    (_b = (_a = session).sendEvent) === null || _b === void 0 ? void 0 : _b.call(_a, {
-                        event_type: 'avatar.speak_text',
-                        session_id: sessionId,
-                        text,
-                    });
+                    session.repeat(text);
                 },
                 interrupt() {
-                    var _a, _b;
-                    (_b = (_a = session).sendEvent) === null || _b === void 0 ? void 0 : _b.call(_a, {
-                        event_type: 'avatar.interrupt',
-                        session_id: sessionId,
-                    });
+                    session.interrupt();
                 },
                 async stop() {
                     await session.stop();
