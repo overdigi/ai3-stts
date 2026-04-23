@@ -308,6 +308,10 @@
                     <input type="checkbox" id="sandbox-mode">
                     <label for="sandbox-mode" style="font-size: 13px;">Sandbox 模式（免費測試，1 分鐘限制，只能用 Wayne avatar）</label>
                 </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="lite-mode">
+                    <label for="lite-mode" style="font-size: 13px;">LITE Mode（ElevenLabs V3 TTS，改善中文語境，如「本行」念法）</label>
+                </div>
 
                 <button class="btn btn-success" onclick="loadConfig()" style="width: 100%; margin-bottom: 15px;">從 Server 載入設定</button>
 
@@ -336,6 +340,76 @@
 
     <!-- Dependencies -->
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <!-- WebSocket patch: convert agent.speak audio from binary string to base64.
+         HeyGen server rejects binary-in-JSON (closes with 1006); base64 is the correct format. -->
+    <script>
+    (function() {
+        const _origSend = WebSocket.prototype.send;
+        const _wsLabel = new WeakMap();
+
+        // Intercept WS constructor for logging
+        const _OrigWS = window.WebSocket;
+        window.WebSocket = function(url, protocols) {
+            const ws = protocols ? new _OrigWS(url, protocols) : new _OrigWS(url);
+            const label = url.includes('livekit') ? 'LiveKit' : (url.includes('heygen') || url.includes('liveavatar') ? 'HeyGen' : 'WS');
+            _wsLabel.set(ws, label);
+            ws.addEventListener('message', function(event) {
+                if (typeof event.data === 'string') {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.type) console.log('[WS←]', label, JSON.stringify(msg));
+                    } catch(e) {}
+                }
+            });
+            ws.addEventListener('open', function() { console.log('[WS open]', label, url.slice(-40)); });
+            ws.addEventListener('close', function(e) { console.log('[WS close]', label, 'code:', e.code, e.reason); });
+            ws.addEventListener('error', function(e) { console.error('[WS error]', label, e); });
+            return ws;
+        };
+        window.WebSocket.prototype = _OrigWS.prototype;
+        window.WebSocket.CONNECTING = _OrigWS.CONNECTING;
+        window.WebSocket.OPEN = _OrigWS.OPEN;
+        window.WebSocket.CLOSING = _OrigWS.CLOSING;
+        window.WebSocket.CLOSED = _OrigWS.CLOSED;
+
+        // Convert binary string → base64 in agent.speak audio field
+        function binaryStringToBase64(bstr) {
+            const bytes = new Uint8Array(bstr.length);
+            for (let i = 0; i < bstr.length; i++) bytes[i] = bstr.charCodeAt(i) & 0xFF;
+            let bin = '';
+            for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+            return btoa(bin);
+        }
+
+        const _speakChunks = new Map();
+
+        WebSocket.prototype.send = function(data) {
+            if (typeof data === 'string') {
+                let parsed;
+                try { parsed = JSON.parse(data); } catch(e) { return _origSend.call(this, data); }
+                if (parsed && parsed.type === 'agent.speak' && parsed.audio) {
+                    const id = parsed.event_id;
+                    _speakChunks.set(id, (_speakChunks.get(id) || 0) + 1);
+                    // Re-encode audio as base64
+                    const b64 = binaryStringToBase64(parsed.audio);
+                    const patched = JSON.stringify({ type: 'agent.speak', event_id: id, audio: b64 });
+                    if (_speakChunks.get(id) === 1) {
+                        console.log('[patch] agent.speak chunk#1 b64_len:', b64.length, '(was binary_len:', parsed.audio.length, ')');
+                    }
+                    return _origSend.call(this, patched);
+                } else if (parsed && parsed.type === 'agent.speak_end') {
+                    const id = parsed.event_id;
+                    console.log('[patch] agent.speak_end total chunks:', _speakChunks.get(id) || 0);
+                    _speakChunks.delete(id);
+                } else if (parsed && parsed.type) {
+                    console.log('[WS→]', parsed.type);
+                }
+            }
+            _origSend.call(this, data);
+        };
+        console.log('[patch] agent.speak audio → base64 active');
+    })();
+    </script>
     <!-- EventEmitter polyfill: LiveAvatar SDK UMD 需要 events 模組 -->
     <script>
     window.events$1 = { EventEmitter: class EventEmitter {
@@ -440,12 +514,15 @@
                 const style = parseFloat(document.getElementById('voice-style').value);
                 const maxDuration = parseInt(document.getElementById('max-duration').value) || undefined;
 
+                const useLiteMode = document.getElementById('lite-mode').checked;
+
                 avatarSession = await client.createLiveAvatarSession({
                     avatarId,
                     voiceId: isSandbox ? undefined : document.getElementById('voice-id').value || undefined,
                     quality: document.getElementById('quality').value,
                     language: document.getElementById('language').value || undefined,
                     isSandbox,
+                    useLiteMode,
                     maxSessionDuration: maxDuration,
                     voiceSettings: { speed, stability, style: style || undefined },
                     mediaElement: videoEl,
