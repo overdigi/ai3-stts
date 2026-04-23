@@ -291,26 +291,39 @@ export class AI3STTS {
     }
 
     // 4. Start session with retry (API may need time to release previous session)
-    const maxRetries = 3;
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        await session.start();
-        break;
-      } catch (startError) {
-        if (attempt < maxRetries) {
-          console.warn(
-            `[AI3STTS] Session start attempt ${attempt} failed, retrying in 3s...`,
-            startError,
-          );
-          await new Promise((r) => setTimeout(r, 3000));
-        } else {
-          throw startError;
+    const startPromise = new Promise<void>((resolve, reject) => {
+      const onStreamReady = () => {
+        session.off('session.stream_ready', onStreamReady);
+        resolve();
+      };
+      session.on('session.stream_ready', onStreamReady);
+
+      const maxRetries = 3;
+      const tryStart = async (attempt: number): Promise<void> => {
+        try {
+          await session.start();
+        } catch (startError) {
+          session.off('session.stream_ready', onStreamReady);
+          if (attempt < maxRetries) {
+            console.warn(
+              `[AI3STTS] Session start attempt ${attempt} failed, retrying in 3s...`,
+              startError,
+            );
+            await new Promise((r) => setTimeout(r, 3000));
+            session.on('session.stream_ready', onStreamReady);
+            return tryStart(attempt + 1);
+          } else {
+            reject(startError);
+          }
         }
-      }
-    }
+      };
+      tryStart(1);
+    });
+
+    await startPromise;
     console.log(`[AI3STTS] LiveAvatar session started: ${sessionId}`);
 
-    // 5. Attach media element after session is ready
+    // 5. Attach media element after stream is ready
     if (options.mediaElement) {
       session.attach(options.mediaElement);
       console.log('[AI3STTS] Media element attached');

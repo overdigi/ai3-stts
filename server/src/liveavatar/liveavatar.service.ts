@@ -17,6 +17,13 @@ export interface CreateTokenOptions {
   voiceSettings?: VoiceSettings;
 }
 
+export interface CreateLiteTokenOptions {
+  avatarId: string;
+  quality?: 'very_high' | 'high' | 'medium' | 'low';
+  isSandbox?: boolean;
+  maxSessionDuration?: number;
+}
+
 export interface CreateTokenResult {
   sessionId: string;
   sessionToken: string;
@@ -103,6 +110,48 @@ export class LiveavatarService {
           `LiveAvatar API HTTP 錯誤 [${error.response.status}]:`,
           error.response.data,
         );
+        throw new Error(`LiveAvatar API 錯誤: HTTP ${error.response.status}`);
+      }
+      if (error.request) {
+        this.logger.error('LiveAvatar API 網路錯誤:', error.message);
+        throw new Error(`網路錯誤: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  async createLiteSessionToken(options: CreateLiteTokenOptions): Promise<CreateTokenResult> {
+    this.logger.log(`建立 LiveAvatar LITE session token: avatarId=${options.avatarId}`);
+
+    const requestBody: Record<string, unknown> = {
+      mode: 'LITE',
+      avatar_id: options.avatarId,
+      is_sandbox: options.isSandbox ?? false,
+      interactivity_type: 'CONVERSATIONAL',
+    };
+
+    if (options.maxSessionDuration) {
+      const maxAllowed = options.isSandbox ? 60 : 1200;
+      requestBody.max_session_duration = Math.min(options.maxSessionDuration, maxAllowed);
+    }
+    if (options.quality) {
+      requestBody.video_settings = { quality: options.quality };
+    }
+
+    try {
+      const response = await this.httpClient.post('/v1/sessions/token', requestBody);
+
+      if (response.data.code !== 1000 || !response.data.data) {
+        throw new Error(`LiveAvatar API 錯誤: ${response.data.message || '未知錯誤'}`);
+      }
+
+      const { session_id, session_token } = response.data.data;
+      this.logger.log(`LITE Session token 建立成功: ${session_id}`);
+
+      return { sessionId: session_id, sessionToken: session_token };
+    } catch (error) {
+      if (error.response) {
+        this.logger.error(`LiveAvatar API HTTP 錯誤 [${error.response.status}]:`, error.response.data);
         throw new Error(`LiveAvatar API 錯誤: HTTP ${error.response.status}`);
       }
       if (error.request) {

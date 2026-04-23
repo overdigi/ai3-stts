@@ -8,7 +8,7 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
-import { LiveavatarService } from './liveavatar.service';
+import { LiveavatarService, CreateLiteTokenOptions } from './liveavatar.service';
 
 @Controller('liveavatar')
 export class LiveavatarController {
@@ -57,6 +57,45 @@ export class LiveavatarController {
         success: true,
         data: result,
       };
+    } catch (error) {
+      throw new HttpException(
+        {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('token/lite')
+  async createLiteToken(
+    @Headers('x-api-key') apiKey: string,
+    @Body()
+    body: {
+      avatarId?: string;
+      quality?: 'very_high' | 'high' | 'medium' | 'low';
+      isSandbox?: boolean;
+      maxSessionDuration?: number;
+    },
+  ) {
+    this.validateApiKey(apiKey);
+
+    try {
+      const avatarId = body.avatarId || process.env.AVATAR_ID;
+      if (!avatarId) {
+        throw new Error('缺少 avatarId 參數');
+      }
+
+      const options: CreateLiteTokenOptions = {
+        avatarId,
+        quality: body.quality,
+        isSandbox: body.isSandbox,
+        maxSessionDuration: body.maxSessionDuration,
+      };
+
+      const result = await this.liveavatarService.createLiteSessionToken(options);
+      return { success: true, data: result };
     } catch (error) {
       throw new HttpException(
         {
