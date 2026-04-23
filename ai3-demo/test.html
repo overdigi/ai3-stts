@@ -5,15 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="pragma" content="no-cache">
-    <meta http-equiv="expires" content="0">
-    <title>AI3-STTS Avatar 對話控制測試</title>
+    <title>AI3-STTS Avatar 測試工具</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -31,8 +25,7 @@
             height: calc(100vh - 40px);
         }
 
-        .avatar-panel,
-        .test-panel {
+        .panel {
             background: white;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
@@ -45,9 +38,6 @@
             background: #4a90e2;
             color: white;
             padding: 15px 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
             font-weight: 600;
         }
 
@@ -57,1532 +47,569 @@
             overflow-y: auto;
         }
 
-        /* Avatar 面板樣式 */
-        .heygen-container {
+        /* Avatar Panel */
+        .avatar-video-container {
             width: 100%;
-            height: 300px;
-            background: #f8f9fa;
+            height: 350px;
+            background: #1a1a2e;
             border-radius: 10px;
+            overflow: hidden;
             position: relative;
-            margin-bottom: 20px;
-        }
-
-
-        .status-indicator {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            right: 10px;
-            text-align: center;
-            padding: 8px 12px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-
-        .status-ready {
-            background: rgba(40, 167, 69, 0.9);
-            color: white;
-        }
-
-        .status-processing {
-            background: rgba(255, 193, 7, 0.9);
-            color: black;
-        }
-
-        .status-error {
-            background: rgba(220, 53, 69, 0.9);
-            color: white;
-        }
-
-        .input-area {
-            margin-top: 20px;
-        }
-
-        .text-input {
-            width: 100%;
-            min-height: 80px;
-            padding: 12px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 14px;
-            resize: vertical;
-            font-family: inherit;
-        }
-
-        .text-input:focus {
-            border-color: #4a90e2;
-            outline: none;
-        }
-
-        .input-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px;
-        }
-
-        .input-counter {
-            font-size: 12px;
-            color: #6c757d;
-        }
-
-        .send-button {
-            padding: 8px 16px;
-            background: #4a90e2;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        .send-button:hover {
-            background: #357abd;
-        }
-
-        /* 測試面板樣式 */
-        .test-controls {
-            margin-bottom: 20px;
-        }
-
-        .control-group {
             margin-bottom: 15px;
         }
 
-        .control-group h3 {
-            color: #495057;
-            margin-bottom: 10px;
-            font-size: 16px;
+        .avatar-video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
-        .test-btn {
-            padding: 10px 16px;
-            margin: 5px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-
-        .test-btn-primary {
-            background: #007bff;
-            color: white;
-        }
-
-        .test-btn-primary:hover {
-            background: #0056b3;
-        }
-
-        .test-btn-success {
-            background: #28a745;
-            color: white;
-        }
-
-        .test-btn-success:hover {
-            background: #1e7e34;
-        }
-
-        .test-btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-
-        .test-btn-danger:hover {
-            background: #bd2130;
-        }
-
-        .test-btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-
-        .test-btn-secondary:hover {
-            background: #545b62;
-        }
-
-        .test-log {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 12px;
-            padding: 15px;
-            border-radius: 8px;
-            height: 300px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
-
-        .log-entry {
-            margin-bottom: 8px;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .log-time {
-            color: #569cd6;
-            font-weight: bold;
-        }
-
-        .log-data {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 8px;
-            border-radius: 4px;
-            margin-top: 4px;
-            font-size: 11px;
-            overflow-x: auto;
-        }
-
-        .system-info {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .system-info h4 {
-            color: #495057;
-            margin-bottom: 10px;
-        }
-
-        .system-info .info-item {
+        .avatar-placeholder {
+            width: 100%;
+            height: 100%;
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.5);
+            gap: 8px;
             font-size: 14px;
         }
 
-        .info-label {
+        .avatar-placeholder .icon { font-size: 48px; }
+
+        .session-status {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            background: rgba(0,0,0,0.6);
+            color: #4ade80;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 4px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* Buttons */
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
             font-weight: 500;
-            color: #6c757d;
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
-        .info-value {
-            color: #495057;
+        .btn-primary { background: #4a90e2; color: white; }
+        .btn-primary:hover { background: #357abd; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* Recording */
+        .mic-btn {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            background: #ff6b35;
+            color: white;
+        }
+        .mic-btn.recording {
+            background: #dc3545;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse { 50% { transform: scale(1.02); } }
+
+        /* Log */
+        .log-container {
+            background: #1e1e2e;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Menlo', 'Monaco', monospace;
+            font-size: 12px;
+            color: #cdd6f4;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
         }
 
-        @media (max-width: 768px) {
-            .test-container {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
+        .log-entry {
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .log-time { color: #89b4fa; }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
         }
     </style>
 </head>
 
 <body>
     <div class="test-container">
-        <!-- Avatar 面板 -->
-        <div class="avatar-panel">
-            <div class="panel-header">
-                <div>🤖</div>
-                <div>AI3-STTS Avatar Demo</div>
-            </div>
+        <!-- Left: Avatar Panel -->
+        <div class="panel">
+            <div class="panel-header">Avatar 畫面</div>
             <div class="panel-content">
-                <!-- HeyGen Avatar -->
-                <div class="heygen-container" id="heygen-player">
-                    <!-- LiveKit Video 元素 -->
-                    <video id="heygen-video" autoplay playsinline
-                        style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px; display: none;"></video>
-
-                    <!-- 音頻元素（如果需要單獨處理音頻） -->
-                    <audio id="heygen-audio" autoplay style="display: none;"></audio>
-
-                    <!-- 載入中顯示 -->
-                    <div id="heygen-loading"
-                        style="display: flex; align-items: center; justify-content: center; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-family: Arial, sans-serif; text-align: center; border-radius: 10px;">
-                        <div>
-                            <h3>🤖 HeyGen LiveKit 模式</h3>
-                            <p>使用 LiveKit 直接整合</p>
-                            <p style="font-size: 12px; opacity: 0.8;" id="status-text">準備就緒</p>
-                        </div>
+                <div class="avatar-video-container" id="avatar-container">
+                    <video id="avatar-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;display:none;"></video>
+                    <div class="avatar-placeholder" id="avatar-placeholder">
+                        <div class="icon">🤖</div>
+                        <div>設定參數後點擊「建立會話」</div>
                     </div>
+                    <div class="session-status" id="session-status">未連線</div>
                 </div>
 
-                <!-- 系統資訊 -->
-                <div class="system-info">
-                    <h4>系統狀態</h4>
-                    <div class="info-item">
-                        <span class="info-label">Avatar 狀態:</span>
-                        <span class="info-value" id="avatar-status">未初始化</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">API URL:</span>
-                        <span class="info-value" id="api-url">-</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">自動開始:</span>
-                        <span class="info-value" id="auto-start-status">否</span>
-                    </div>
+                <!-- Session Controls -->
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="btn-start" onclick="startSession()">建立會話</button>
+                    <button class="btn btn-warning" id="btn-interrupt" onclick="interruptAvatar()" disabled>中斷說話</button>
+                    <button class="btn btn-danger" id="btn-stop" onclick="stopSession()" disabled>結束會話</button>
                 </div>
 
-                <!-- HeyGen 模式控制 -->
-                <div class="system-info">
-                    <h4>HeyGen 狀態</h4>
-                    <div class="info-item">
-                        <span class="info-label">運行模式:</span>
-                        <span class="info-value" id="mode-status">直接模式</span>
-                    </div>
+                <!-- STT -->
+                <button class="mic-btn" id="mic-btn" onclick="toggleRecording()">🎤 開始語音辨識</button>
+
+                <div id="transcript" style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; min-height: 40px; font-size: 14px; color: #333;">
+                    點擊上方按鈕開始語音輸入
                 </div>
 
-                <!-- 輸入區域 -->
-                <div class="input-area">
-                    <textarea id="text-input" class="text-input" placeholder="輸入要播放的文字..."></textarea>
-                    <div class="input-footer">
-                        <div class="input-counter" id="input-counter">0</div>
-                        <button class="send-button" id="send-button">
-                            播放文字
-                        </button>
-                    </div>
-                </div>
+                <!-- Log -->
+                <div class="log-container" id="log-container"></div>
             </div>
         </div>
 
-        <!-- 測試面板 -->
-        <div class="test-panel">
-            <div class="panel-header">
-                <div>🧪</div>
-                <div>測試控制面板</div>
-            </div>
+        <!-- Right: Control Panel -->
+        <div class="panel">
+            <div class="panel-header">測試控制台</div>
             <div class="panel-content">
-                <!-- 測試控制 -->
-                <div class="test-controls">
-                    <!-- HeyGen 參數設定 -->
-                    <div class="control-group" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #dee2e6;">
-                        <h3 style="margin-bottom: 12px;">⚙️ HeyGen 可用參數</h3>
+                <!-- Server Config -->
+                <h3 style="font-size: 14px; margin-bottom: 10px; color: #333;">Server 設定</h3>
+                <div class="form-group">
+                    <label>API URL</label>
+                    <input type="text" id="api-url" value="http://localhost:3000">
+                </div>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="text" id="api-key" value="your-api-key" placeholder="對應 server .env 的 API_KEY">
+                </div>
 
-                        <!-- 第一行：畫質和語音情緒 -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            <div>
-                                <label style="font-size: 11px; color: #6c757d; display: block; margin-bottom: 3px;">畫質 (Quality)</label>
-                                <select id="heygen-quality" style="width: 100%; padding: 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px; background: white;">
-                                    <option value="low">Low (360p/500kbps)</option>
-                                    <option value="medium">Medium (480p/1000kbps)</option>
-                                    <option value="high">High (720p/2000kbps)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="font-size: 11px; color: #6c757d; display: block; margin-bottom: 3px;">語音情緒 (Emotion)</label>
-                                <select id="heygen-emotion" style="width: 100%; padding: 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px; background: white;">
-                                    <option value="excited">Excited（興奮）</option>
-                                    <option value="friendly">Friendly（友善）</option>
-                                    <option value="serious">Serious（嚴肅）</option>
-                                    <option value="soothing">Soothing（舒緩）</option>
-                                    <option value="broadcaster">Broadcaster（播報員）</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- 第二行：語速 -->
-                        <div style="margin-top: 10px;">
-                            <label style="font-size: 11px; color: #6c757d; display: block; margin-bottom: 3px;">語速 (Rate): <span id="rate-value">1.0</span>x</label>
-                            <input type="range" id="heygen-rate" min="0.5" max="1.5" step="0.1" value="1.0"
-                                style="width: 100%;" oninput="document.getElementById('rate-value').textContent = this.value">
-                        </div>
-
-                        <!-- 第三行：閒置超時 -->
-                        <div style="margin-top: 10px;">
-                            <label style="font-size: 11px; color: #6c757d; display: block; margin-bottom: 3px;">閒置超時 (activityIdleTimeout): <span id="idle-timeout-value">120</span> 秒</label>
-                            <input type="range" id="heygen-idle-timeout" min="30" max="3600" step="30" value="120"
-                                style="width: 100%;" oninput="document.getElementById('idle-timeout-value').textContent = this.value">
-                            <div style="display: flex; justify-content: space-between; font-size: 10px; color: #999;">
-                                <span>30秒</span>
-                                <span>3600秒 (1小時)</span>
-                            </div>
-                        </div>
-
-                        <!-- 操作按鈕 -->
-                        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #dee2e6;">
-                            <button class="test-btn test-btn-primary" onclick="applyHeyGenParams()" title="套用參數並重新建立會話">
-                                🔄 套用參數
-                            </button>
-                            <button class="test-btn test-btn-secondary" onclick="showCurrentParams()" title="顯示目前設定的參數">
-                                📋 顯示參數
-                            </button>
-                            <button class="test-btn test-btn-secondary" onclick="resetHeyGenParams()" title="重置為預設值">
-                                ↩️ 重置
-                            </button>
-                        </div>
-                        <div style="margin-top: 6px; font-size: 10px; color: #6c757d;">
-                            💡 修改參數後需按「套用參數」重新建立會話才會生效
-                        </div>
+                <!-- Avatar Config -->
+                <h3 style="font-size: 14px; margin: 15px 0 10px; color: #333;">Avatar 設定</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Avatar ID</label>
+                        <input type="text" id="avatar-id" value="38169877-7e0c-4fab-bd7b-fb3401aad0b9" placeholder="從 server config 載入">
                     </div>
-
-                    <div class="control-group">
-                        <h3>對話控制</h3>
-                        <button class="test-btn test-btn-primary" onclick="testStartConversation()">
-                            開始對話
-                        </button>
-                        <button class="test-btn test-btn-secondary" onclick="testStopConversation()">
-                            結束對話
-                        </button>
-                    </div>
-
-                    <div class="control-group">
-                        <h3>STT 語音識別測試</h3>
-                        <button class="test-btn test-btn-success" onclick="testStartSTT()">
-                            開始錄音
-                        </button>
-                        <button class="test-btn test-btn-danger" onclick="testStopSTT()">
-                            停止錄音
-                        </button>
-                        <button class="test-btn test-btn-secondary" onclick="testSTTStatus()">
-                            檢查 STT 狀態
-                        </button>
-                        <button class="test-btn test-btn-primary" onclick="testSTTConnection()">
-                            測試 STT 連接
-                        </button>
-                    </div>
-
-
-
-                    <div class="control-group">
-                        <h3>HeyGen 會話控制</h3>
-                        <button class="test-btn test-btn-success" onclick="testCreateDirectSession()">
-                            建立會話
-                        </button>
-                        <button class="test-btn test-btn-danger" onclick="testStopDirectSession()">
-                            停止會話
-                        </button>
-                    </div>
-
-                    <!-- 新功能測試區域 -->
-                    <div class="control-group">
-                        <h3>🆕 斷線時間管理</h3>
-                        <input type="number" id="timeout-input" placeholder="超時（毫秒）" value="600000" min="60000"
-                            style="margin: 2px; padding: 8px; width: 120px; border: 1px solid #ddd; border-radius: 4px;">
-                        <button class="test-btn test-btn-primary" onclick="testCreateSessionWithTimeout()">
-                            建立會話（自定義超時）
-                        </button>
-                        <button class="test-btn test-btn-secondary" onclick="testSendKeepalive()">
-                            發送 Keepalive
-                        </button>
-                    </div>
-
-                    <div class="control-group">
-                        <h3>🆕 聲音控制</h3>
-                        <button class="test-btn test-btn-success" onclick="testEnableAudio()"
-                            title="手動初始化音頻（開始對話時會自動執行）">
-                            手動初始化音頻
-                        </button>
-                        <button class="test-btn test-btn-secondary" onclick="testMuteAudio()" title="將音頻設為靜音">
-                            靜音
-                        </button>
-                        <button class="test-btn test-btn-secondary" onclick="testUnmuteAudio()" title="取消靜音狀態">
-                            取消靜音
-                        </button>
-                        <br>
-                        <label style="margin: 5px;">音量：</label>
-                        <input type="range" id="volume-slider" min="0" max="100" value="70"
-                            onchange="testSetVolume(this.value)" style="margin: 5px; width: 120px;">
-                        <span id="volume-value">70%</span>
-                    </div>
-
-                    <div class="control-group">
-                        <h3>🆕 播放控制</h3>
-                        <button class="test-btn test-btn-secondary" onclick="testPausePlayback()">
-                            暫停播放
-                        </button>
-                        <button class="test-btn test-btn-primary" onclick="testResumePlayback()">
-                            恢復播放
-                        </button>
-                        <button class="test-btn test-btn-secondary" onclick="testGetPlaybackState()">
-                            檢查播放狀態
-                        </button>
-                        <button class="test-btn test-btn-success" onclick="testSpeakFunction()">
-                            測試語音合成
-                        </button>
-                    </div>
-
-                    <div class="control-group">
-                        <h3>🆕 STT 解耦</h3>
-                        <button class="test-btn test-btn-success" onclick="testCreateWithSTT()">
-                            重新初始化（啟用 STT）
-                        </button>
-                        <button class="test-btn test-btn-secondary" onclick="testCreateWithoutSTT()">
-                            重新初始化（停用 STT）
-                        </button>
-                        <button class="test-btn test-btn-primary" onclick="testToggleSTT()">
-                            切換 STT 狀態
-                        </button>
-                        <button class="test-btn test-btn-secondary" onclick="testCheckSTTStatus()">
-                            檢查 STT 狀態
-                        </button>
-                    </div>
-
-                    <div class="control-group">
-                        <h3>🔍 診斷工具</h3>
-                        <button class="test-btn test-btn-primary" onclick="testDiagnoseAvatar()">
-                            診斷 Avatar 狀態
-                        </button>
-                        <button class="test-btn test-btn-secondary" onclick="testCheckVideoElement()">
-                            檢查 Video 元素
-                        </button>
-                    </div>
-
-                    <div class="control-group">
-                        <h3>🔄 系統控制</h3>
-                        <button class="test-btn test-btn-primary" onclick="location.reload()">
-                            重新載入頁面
-                        </button>
-                        <button class="test-btn test-btn-secondary" onclick="TestUtils.clearLog()">
-                            清除日誌
-                        </button>
-                        <button class="test-btn test-btn-secondary" onclick="exportLog()">
-                            匯出日誌
-                        </button>
+                    <div class="form-group">
+                        <label>Voice ID</label>
+                        <input type="text" id="voice-id" placeholder="從 server config 載入">
                     </div>
                 </div>
 
-                <!-- 測試日誌 -->
-                <div>
-                    <h3 style="margin-bottom: 10px; color: #495057;">測試日誌</h3>
-                    <div id="test-log" class="test-log">
-                        載入中...
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>畫質</label>
+                        <select id="quality">
+                            <option value="low">低 (Low)</option>
+                            <option value="medium" selected>中 (Medium)</option>
+                            <option value="high">高 (High)</option>
+                            <option value="very_high">極高 (Very High)</option>
+                        </select>
                     </div>
+                    <div class="form-group">
+                        <label>語言</label>
+                        <input type="text" id="language" value="zh" placeholder="zh, en, ja...">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>語速 (speed)</label>
+                        <input type="range" id="voice-speed" min="0.5" max="1.2" step="0.1" value="1.0"
+                            oninput="document.getElementById('speed-val').textContent=this.value">
+                        <span id="speed-val" style="font-size:12px;color:#666;">1.0</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Session 時長（秒）</label>
+                        <input type="number" id="max-duration" min="60" max="1200" value="600" step="60" placeholder="60~1200">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>穩定度 (stability)</label>
+                        <input type="range" id="voice-stability" min="0" max="1" step="0.1" value="0.5"
+                            oninput="document.getElementById('stability-val').textContent=this.value">
+                        <span id="stability-val" style="font-size:12px;color:#666;">0.5</span>
+                    </div>
+                    <div class="form-group">
+                        <label>風格 (style)</label>
+                        <input type="range" id="voice-style" min="0" max="1" step="0.1" value="0"
+                            oninput="document.getElementById('style-val').textContent=this.value">
+                        <span id="style-val" style="font-size:12px;color:#666;">0</span>
+                    </div>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="sandbox-mode">
+                    <label for="sandbox-mode" style="font-size: 13px;">Sandbox 模式（免費測試，1 分鐘限制，只能用 Wayne avatar）</label>
+                </div>
+
+                <button class="btn btn-success" onclick="loadConfig()" style="width: 100%; margin-bottom: 15px;">從 Server 載入設定</button>
+
+                <!-- Speak Test -->
+                <h3 style="font-size: 14px; margin: 15px 0 10px; color: #333;">發話測試</h3>
+                <div class="form-group">
+                    <label>文字內容</label>
+                    <textarea id="speak-text" placeholder="輸入要讓 Avatar 說的話...">你好，歡迎使用 AI3 語音互動系統。</textarea>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="btn-speak" onclick="speakText()" disabled>發送文字</button>
+                </div>
+
+                <!-- Quick Test Phrases -->
+                <h3 style="font-size: 14px; margin: 15px 0 10px; color: #333;">快速測試</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    <button class="btn btn-primary" style="flex: none; font-size: 12px; padding: 6px 12px;" onclick="quickSpeak('你好，我是 AI 助理。')">打招呼</button>
+                    <button class="btn btn-primary" style="flex: none; font-size: 12px; padding: 6px 12px;" onclick="quickSpeak('這是一段較長的測試文字。我可以幫你解答各種問題，請問有什麼我可以幫忙的嗎？')">長文字</button>
+                    <button class="btn btn-primary" style="flex: none; font-size: 12px; padding: 6px 12px;" onclick="quickSpeak('Hello, this is an English test.')">英文</button>
+                    <button class="btn btn-primary" style="flex: none; font-size: 12px; padding: 6px 12px;" onclick="quickSpeak('こんにちは、テストです。')">日文</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 載入依賴 -->
+    <!-- Dependencies -->
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
-    <!-- LiveKit Client SDK -->
-    <script src="https://unpkg.com/livekit-client@1.15.13/dist/livekit-client.umd.js"></script>
+    <!-- EventEmitter polyfill: LiveAvatar SDK UMD 需要 events 模組 -->
     <script>
-        // 確保 LiveKit SDK 全域可用
-        window.addEventListener('load', function () {
-            if (typeof window !== 'undefined' && typeof LivekitClient !== 'undefined') {
-                window.LivekitClient = LivekitClient;
-                console.log('✅ LiveKit Client SDK 已載入:', Object.keys(LivekitClient));
-            } else if (typeof window !== 'undefined' && typeof window.LivekitClient !== 'undefined') {
-                console.log('✅ LiveKit Client SDK 已全域載入:', Object.keys(window.LivekitClient));
-            } else {
-                console.warn('❌ LiveKit Client SDK 載入失敗');
-                // 嘗試延遲載入
-                setTimeout(function () {
-                    if (typeof LivekitClient !== 'undefined') {
-                        window.LivekitClient = LivekitClient;
-                        console.log('✅ LiveKit Client SDK 延遲載入成功');
-                    }
-                }, 1000);
-            }
-        });
+    window.events$1 = { EventEmitter: class EventEmitter {
+        constructor() { this._e = {}; }
+        on(e, f) { (this._e[e] = this._e[e] || []).push(f); return this; }
+        off(e, f) { const l = this._e[e]; if (l) this._e[e] = l.filter(x => x !== f); return this; }
+        emit(e, ...a) { (this._e[e] || []).forEach(f => f(...a)); return this; }
+        once(e, f) { const w = (...a) => { this.off(e, w); f(...a); }; return this.on(e, w); }
+        removeAllListeners(e) { if (e) delete this._e[e]; else this._e = {}; return this; }
+        addListener(e, f) { return this.on(e, f); }
+        removeListener(e, f) { return this.off(e, f); }
+        listenerCount(e) { return (this._e[e] || []).length; }
+    }};
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/@heygen/liveavatar-web-sdk/dist/index.umd.js"></script>
     <script src="ai3-stts.js"></script>
-    <script src="test-config.js"></script>
-    <script src="Avatar.js"></script>
-
     <script>
-        // 測試函數
-        function testStartConversation() {
-            TestUtils.log('📞 測試：開始對話');
+        // --- State ---
+        let client = null;
+        let avatarSession = null;
+        let sttSession = null;
+        let mediaStream = null;
+        let audioContext = null;
+        let isRecording = false;
 
-            // 利用用戶點擊事件預先啟用音訊權限
-
-            if (typeof Avatar !== 'undefined' && Avatar.startConversation) {
-                TestUtils.log('🚀 呼叫 SDK 方法: Avatar.startConversation()');
-                Avatar.startConversation();
-            } else {
-                TestUtils.log('❌ Avatar.startConversation 方法未找到');
-            }
+        // --- Logging ---
+        function log(msg, data) {
+            const time = new Date().toLocaleTimeString();
+            const container = document.getElementById('log-container');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${msg}`;
+            if (data) entry.innerHTML += ` <span style="color:#a6adc8">${JSON.stringify(data)}</span>`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+            console.log(`[${time}] ${msg}`, data || '');
         }
 
-        // 預先啟用音訊權限的函數
-        function enableAudioPermission() {
-            try {
-                // 創建一個很短的無聲音訊來啟用音訊上下文
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                gainNode.gain.value = 0; // 無聲
-                oscillator.frequency.value = 440;
-                oscillator.start();
-                oscillator.stop(audioContext.currentTime + 0.01);
-
-                TestUtils.log('🔊 已預先啟用音訊權限');
-
-                // 音訊已啟用，準備進行語音識別
-            } catch (error) {
-                TestUtils.log('⚠️ 音訊權限啟用失敗:', error.message);
-            }
+        function updateSessionStatus(text, color) {
+            const el = document.getElementById('session-status');
+            el.textContent = text;
+            el.style.color = color || '#4ade80';
         }
 
-        function testStopConversation() {
-            TestUtils.log('📞 測試：結束對話');
-            if (typeof Avatar !== 'undefined' && Avatar.stopConversation) {
-                TestUtils.log('🚀 呼叫 SDK 方法: Avatar.stopConversation()');
-                Avatar.stopConversation();
-            } else {
-                TestUtils.log('❌ Avatar.stopConversation 方法未找到');
-            }
+        // --- Init ---
+        function getApiKey() {
+            return document.getElementById('api-key').value || undefined;
         }
 
-        // STT 測試函數
-        function testStartSTT() {
-            TestUtils.log('🎤 測試：開始 STT 錄音');
-            if (typeof Avatar !== 'undefined' && Avatar.startRecording) {
-                TestUtils.log('📋 檢查 STT 依賴:');
-                TestUtils.log(`- Socket.io: ${typeof io !== 'undefined' ? '✅' : '❌'}`);
-                TestUtils.log(`- Avatar.isInitialized: ${Avatar.isInitialized || false}`);
-                TestUtils.log(`- Avatar.isRecording: ${Avatar.isRecording || false}`);
-
-                TestUtils.log('🚀 呼叫 SDK 方法: Avatar.startRecording()');
-                Avatar.startRecording();
-            } else {
-                TestUtils.log('❌ Avatar.startRecording 方法未找到');
+        document.addEventListener('DOMContentLoaded', () => {
+            // 自動偵測 API URL：localhost 用 3000，部署環境用當前 origin
+            const apiUrlInput = document.getElementById('api-url');
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                apiUrlInput.value = window.location.origin;
             }
-        }
-
-        function testStopSTT() {
-            TestUtils.log('🛑 測試：停止 STT 錄音');
-            if (typeof Avatar !== 'undefined' && Avatar.stopRecording) {
-                TestUtils.log('🚀 呼叫 SDK 方法: Avatar.stopRecording()');
-                Avatar.stopRecording();
-            } else {
-                TestUtils.log('❌ Avatar.stopRecording 方法未找到');
-            }
-        }
-
-        function testSTTStatus() {
-            TestUtils.log('📊 測試：檢查 STT 狀態');
-            TestUtils.log('🚀 呼叫 SDK 屬性: Avatar 狀態檢查');
-            if (typeof Avatar !== 'undefined') {
-                TestUtils.log('Avatar 狀態:', {
-                    isInitialized: Avatar.isInitialized || false,
-                    isRecording: Avatar.isRecording || false,
-                    sttEnabled: Avatar.sttEnabled || false,
-                    client: Avatar.client ? '已連接' : '未連接'
-                });
-
-                // 檢查 Socket.io 全域變數
-                TestUtils.log('Socket.io 全域檢查:', {
-                    io_defined: typeof io !== 'undefined',
-                    io_version: typeof io !== 'undefined' ? io.version : 'N/A'
-                });
-
-                // 檢查 AI3STTS SDK
-                if (typeof AI3STTS !== 'undefined') {
-                    TestUtils.log('AI3STTS SDK 狀態: 已載入');
-                } else {
-                    TestUtils.log('❌ AI3STTS SDK 未載入');
-                }
-            } else {
-                TestUtils.log('❌ Avatar 對象未找到');
-            }
-        }
-
-        function testReload() {
-            TestUtils.log('🔄 測試：重新載入 Avatar');
-            location.reload();
-        }
-
-        async function testHeyGenAPI() {
-            TestUtils.log('🧪 測試：檢查 HeyGen API');
-            try {
-                const response = await fetch('http://localhost:3000/heygen/test');
-                const result = await response.json();
-                TestUtils.log('HeyGen API 測試結果:', result);
-            } catch (error) {
-                TestUtils.log('❌ HeyGen API 測試失敗:', error.message);
-            }
-        }
-
-        // 新增 STT 連接測試
-        async function testSTTConnection() {
-            TestUtils.log('🔗 測試：STT 連接');
-            TestUtils.log('🚀 呼叫 SDK 方法: io() 連接測試');
-            try {
-                // 嘗試建立 Socket.io 連接
-                if (typeof io === 'undefined') {
-                    throw new Error('Socket.io 未載入');
-                }
-
-                TestUtils.log('嘗試建立 Socket.io 連接到 localhost:3000...');
-                const socket = io('http://localhost:3000');
-
-                socket.on('connect', () => {
-                    TestUtils.log('✅ Socket.io 連接成功');
-                    socket.disconnect();
-                });
-
-                socket.on('connect_error', (error) => {
-                    TestUtils.log('❌ Socket.io 連接失敗:', error.message);
-                });
-
-                // 超時檢查
-                setTimeout(() => {
-                    if (!socket.connected) {
-                        TestUtils.log('⚠️ Socket.io 連接超時');
-                        socket.disconnect();
-                    }
-                }, 5000);
-
-            } catch (error) {
-                TestUtils.log('❌ STT 連接測試失敗:', error.message);
-            }
-        }
-
-
-        function exportLog() {
-            TestUtils.log('💾 測試：匯出日誌');
-            const logContainer = document.getElementById('test-log');
-            const logText = logContainer.textContent;
-            const blob = new Blob([logText], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `avatar-test-log-${new Date().toISOString().slice(0, 19)}.txt`;
-            a.click();
-            URL.revokeObjectURL(url);
-            TestUtils.log('📁 測試日誌已匯出');
-        }
-
-        // 更新系統資訊
-        function updateSystemInfo() {
-            const apiUrlEl = document.getElementById('api-url');
-            const autoStartEl = document.getElementById('auto-start-status');
-            const avatarStatusEl = document.getElementById('avatar-status');
-
-            if (apiUrlEl && typeof Util !== 'undefined') {
-                apiUrlEl.textContent = Util.getConfig('avaterApiUrl') || '-';
-            }
-
-            if (autoStartEl && typeof Util !== 'undefined') {
-                autoStartEl.textContent = Util.getConfig('autoStartConversation') ? '是' : '否';
-            }
-
-            if (avatarStatusEl && typeof Avatar !== 'undefined') {
-                avatarStatusEl.textContent = Avatar.isInitialized ? '已初始化' : '未初始化';
-            }
-        }
-
-
-        // API 基礎 URL - 智能檢測
-        const getApiBaseUrl = () => {
-            // 如果在同一個端口（3000），使用相對路徑
-            if (window.location.port === '3000') {
-                return '';
-            }
-
-            // 如果是開發環境，回退到 localhost:3000
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                return 'http://localhost:3000';
-            }
-
-            // 生產環境：使用同一個域名但端口 3000
-            return `${window.location.protocol}//${window.location.hostname}:3000`;
-        };
-
-        const API_BASE_URL = getApiBaseUrl();
-
-        // 記錄 API 配置到日誌
-        console.log('🔧 API 配置檢測:', {
-            currentUrl: window.location.href,
-            currentPort: window.location.port,
-            hostname: window.location.hostname,
-            apiBaseUrl: API_BASE_URL || '(相對路徑)'
+            const apiUrl = apiUrlInput.value;
+            client = new AI3STTS({ apiUrl, apiKey: getApiKey() });
+            log('SDK 初始化完成');
+            loadConfig();
         });
 
+        // --- Config ---
+        async function loadConfig() {
+            try {
+                const apiUrl = document.getElementById('api-url').value;
+                client = new AI3STTS({ apiUrl, apiKey: getApiKey() });
 
-        /**
-         * 透過後端 API 切換音效狀態
-         */
-
-        /**
-         * 更新音效狀態顯示
-         */
-
-        // 直接呼叫 API 進行語音合成
-
-        // 文字輸入處理
-        document.addEventListener('DOMContentLoaded', async function () {
-            // 載入後端配置
-            TestUtils.log('🔧 正在從後端載入配置...');
-            await Util.loadConfigFromBackend();
-
-            const textInput = document.getElementById('text-input');
-            const inputCounter = document.getElementById('input-counter');
-            const sendButton = document.getElementById('send-button');
-
-            if (textInput && inputCounter) {
-                textInput.addEventListener('input', function () {
-                    const length = textInput.value.length;
-                    inputCounter.textContent = length;
-                });
+                const config = await client.getConfig();
+                if (config.avatarId) document.getElementById('avatar-id').value = config.avatarId;
+                if (config.voiceId) document.getElementById('voice-id').value = config.voiceId;
+                log('Server 設定載入成功', config);
+            } catch (error) {
+                log('載入設定失敗: ' + error.message);
             }
+        }
 
-            if (sendButton && textInput) {
-                sendButton.addEventListener('click', function sendButtonClick() {
-                    const text = textInput.value.trim();
-                    if (text) {
-                        TestUtils.log('🎤 播放文字:', text);
-                        if (typeof Avatar !== 'undefined' && Avatar.speak) {
-                            TestUtils.log('🚀 呼叫 SDK 方法: Avatar.speak()');
-                            Avatar.speak(text);
-                            textInput.value = '';
-                            inputCounter.textContent = '0';
-                        } else {
-                            TestUtils.log('❌ Avatar.speak 方法未找到');
+        // --- Session ---
+        async function startSession() {
+            try {
+                // 清理舊 session
+                if (avatarSession) {
+                    try { await avatarSession.stop(); } catch (e) { /* ignore */ }
+                    avatarSession = null;
+                }
+
+                document.getElementById('btn-start').disabled = true;
+                updateSessionStatus('建立中...', '#facc15');
+                log('正在建立 LiveAvatar 會話...');
+
+                const isSandbox = document.getElementById('sandbox-mode').checked;
+                const avatarId = isSandbox
+                    ? 'dd73ea75-1218-4ef3-92ce-606d5f7fbc0a'
+                    : document.getElementById('avatar-id').value;
+
+                if (!avatarId) {
+                    throw new Error('請設定 Avatar ID');
+                }
+
+                const videoEl = document.getElementById('avatar-video');
+                const speed = parseFloat(document.getElementById('voice-speed').value);
+                const stability = parseFloat(document.getElementById('voice-stability').value);
+                const style = parseFloat(document.getElementById('voice-style').value);
+                const maxDuration = parseInt(document.getElementById('max-duration').value) || undefined;
+
+                avatarSession = await client.createLiveAvatarSession({
+                    avatarId,
+                    voiceId: isSandbox ? undefined : document.getElementById('voice-id').value || undefined,
+                    quality: document.getElementById('quality').value,
+                    language: document.getElementById('language').value || undefined,
+                    isSandbox,
+                    maxSessionDuration: maxDuration,
+                    voiceSettings: { speed, stability, style: style || undefined },
+                    mediaElement: videoEl,
+                    onEvent: (event, data) => {
+                        log(`Avatar 事件: ${event}`, data);
+                        if (event === 'avatar_start_talking') updateSessionStatus('說話中', '#facc15');
+                        if (event === 'avatar_stop_talking') updateSessionStatus('已連線', '#4ade80');
+                        if (event === 'session_stopped') {
+                            updateSessionStatus('已結束', '#f87171');
+                            videoEl.style.display = 'none';
+                            document.getElementById('avatar-placeholder').classList.remove('hidden');
+                            resetButtons();
                         }
-                    }
-                });
-            }
-
-            // 初始化模式選擇器
-            // 設定為直接模式
-            document.getElementById('mode-status').textContent = '直接模式';
-
-            // 初始化系統資訊
-            updateSystemInfo();
-
-            // 定期更新系統資訊
-            setInterval(() => {
-                updateSystemInfo();
-            }, 5000);
-
-            // 初始化日誌
-            TestUtils.log('🚀 AI3-STTS Avatar 測試頁面已載入');
-            TestUtils.log('📋 依賴檢查:');
-            TestUtils.log(`- Socket.io: ${typeof io !== 'undefined' ? '✅ v' + (io?.version || 'unknown') : '❌'}`);
-            TestUtils.log(`- AI3STTS: ${typeof AI3STTS !== 'undefined' ? '✅' : '❌'}`);
-            TestUtils.log(`- Avatar: ${typeof Avatar !== 'undefined' ? '✅' : '❌'}`);
-            TestUtils.log(`- Util: ${typeof Util !== 'undefined' ? '✅' : '❌'}`);
-            TestUtils.log(`- WebChat: ${typeof WebChat !== 'undefined' ? '✅' : '❌'}`);
-
-            // 額外的 Socket.io 診斷
-            if (typeof io !== 'undefined') {
-                TestUtils.log('🔍 Socket.io 詳細檢查:');
-                TestUtils.log(`- 版本: ${io.version || 'unknown'}`);
-                TestUtils.log(`- 型別: ${typeof io}`);
-                TestUtils.log(`- io.connect 函數: ${typeof io.connect !== 'undefined' ? '✅' : '❌'}`);
-                TestUtils.log(`- io() 函數: ${typeof io === 'function' ? '✅' : '❌'}`);
-            } else {
-                TestUtils.log('❌ Socket.io 完全未載入 - 檢查 CDN 連接');
-            }
-        });
-
-        // 直接模式不需要 message 監聽器
-
-        // 初始化模式選擇器
-        // HeyGen 會話測試函數
-
-        function testCreateDirectSession() {
-            TestUtils.logFunctionCall('testCreateDirectSession', '建立會話');
-
-            if (Avatar && Avatar.createDirectSession) {
-                Avatar.createDirectSession().then(session => {
-                    TestUtils.log('✅ 會話建立成功:', session.sessionId);
-                }).catch(error => {
-                    TestUtils.log('❌ 建立會話失敗:', error.message);
-                });
-            } else {
-                TestUtils.log('❌ Avatar.createDirectSession 方法未找到');
-            }
-        }
-
-        function testStopDirectSession() {
-            TestUtils.logFunctionCall('testStopDirectSession', '停止會話');
-
-            if (Avatar && Avatar.directSession && Avatar.directSession.stop) {
-                Avatar.directSession.stop().then(result => {
-                    TestUtils.log('✅ 會話停止成功:', result);
-                    Avatar.directSession = null;
-                }).catch(error => {
-                    TestUtils.log('❌ 停止會話失敗:', error.message);
-                });
-            } else if (Avatar && Avatar.client && Avatar.client.stopAllHeyGenDirectSessions) {
-                Avatar.client.stopAllHeyGenDirectSessions().then(() => {
-                    TestUtils.log('✅ 所有會話已停止');
-                    Avatar.directSession = null;
-                }).catch(error => {
-                    TestUtils.log('❌ 停止所有會話失敗:', error.message);
-                });
-            } else {
-                TestUtils.log('❌ 沒有活動的會話或相關方法未找到');
-            }
-        }
-
-        // ======== HeyGen 參數設定函數 ========
-
-        // 取得當前 HeyGen 參數設定
-        function getHeyGenParams() {
-            return {
-                quality: document.getElementById('heygen-quality').value,
-                emotion: document.getElementById('heygen-emotion').value,
-                rate: parseFloat(document.getElementById('heygen-rate').value),
-                activityIdleTimeout: parseInt(document.getElementById('heygen-idle-timeout').value)
-            };
-        }
-
-        // 套用 HeyGen 參數
-        async function applyHeyGenParams() {
-            TestUtils.logFunctionCall('applyHeyGenParams', '套用 HeyGen 參數');
-
-            const params = getHeyGenParams();
-            TestUtils.log('📋 新參數設定:', params);
-
-            try {
-                // 停止現有會話
-                if (Avatar && Avatar.directSession) {
-                    TestUtils.log('🔄 停止現有會話...');
-                    await Avatar.stopConversation();
-                }
-
-                // 更新 Avatar 設定
-                if (Avatar) {
-                    Avatar.heygenParams = params;
-                    TestUtils.log('✅ 參數已儲存到 Avatar.heygenParams');
-                    TestUtils.log('💡 請點擊「開始對話」以使用新參數建立會話');
-                }
-            } catch (error) {
-                TestUtils.log('❌ 套用參數失敗:', error.message);
-            }
-        }
-
-        // 顯示當前參數
-        function showCurrentParams() {
-            TestUtils.logFunctionCall('showCurrentParams', '顯示當前參數');
-
-            const params = getHeyGenParams();
-            TestUtils.log('📋 當前 UI 參數設定:', params);
-
-            if (Avatar && Avatar.heygenParams) {
-                TestUtils.log('📋 已套用的參數 (Avatar.heygenParams):', Avatar.heygenParams);
-            } else {
-                TestUtils.log('ℹ️ 尚未套用參數，使用預設值');
-            }
-
-            // 顯示畫質說明
-            const qualityInfo = {
-                'low': 'Low: 360p / 500kbps - 省流量',
-                'medium': 'Medium: 480p / 1000kbps - 平衡',
-                'high': 'High: 720p / 2000kbps - 最清晰'
-            };
-            TestUtils.log('📺 畫質說明:', qualityInfo[params.quality]);
-        }
-
-        // 重置參數為預設值
-        function resetHeyGenParams() {
-            TestUtils.logFunctionCall('resetHeyGenParams', '重置參數');
-
-            document.getElementById('heygen-quality').value = 'low';
-            document.getElementById('heygen-emotion').value = 'excited';
-            document.getElementById('heygen-rate').value = '1.0';
-            document.getElementById('rate-value').textContent = '1.0';
-            document.getElementById('heygen-idle-timeout').value = '120';
-            document.getElementById('idle-timeout-value').textContent = '120';
-
-            if (Avatar) {
-                Avatar.heygenParams = null;
-            }
-
-            TestUtils.log('✅ 參數已重置為預設值');
-        }
-
-        // ======== 新功能測試函數 ========
-
-        // 1. 斷線時間管理測試
-        async function testCreateSessionWithTimeout() {
-            TestUtils.logFunctionCall('testCreateSessionWithTimeout', '建立會話（自定義超時）');
-
-            try {
-                const timeout = parseInt(document.getElementById('timeout-input').value) || 600000;
-                TestUtils.log(`⏰ 設定超時時間: ${timeout}ms (${timeout / 1000 / 60}分鐘)`);
-
-                // 直接調用後端 API
-                const response = await fetch(`${API_BASE_URL}/heygen-direct/session`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': Util.getConfig('avaterApiKey')
                     },
-                    body: JSON.stringify({
-                        avatarId: Util.getConfig('avatarId'),
-                        voiceId: Util.getConfig('voiceId'),
-                        timeout: timeout
-                    })
                 });
 
-                const data = await response.json();
-                if (data.success) {
-                    TestUtils.log('✅ 自定義超時會話建立成功:', {
-                        sessionId: data.sessionId,
-                        timeout: `${timeout}ms`
-                    });
-
-                    // 也嘗試透過 Avatar 建立會話
-                    if (Avatar && Avatar.createDirectSession) {
-                        TestUtils.log('🔄 同時透過 Avatar SDK 建立會話...');
-                        Avatar.createDirectSession({ timeout: timeout });
-                    }
-                } else {
-                    throw new Error(data.error || 'API 回應錯誤');
-                }
+                videoEl.style.display = 'block';
+                document.getElementById('avatar-placeholder').classList.add('hidden');
+                updateSessionStatus('已連線', '#4ade80');
+                document.getElementById('btn-interrupt').disabled = false;
+                document.getElementById('btn-stop').disabled = false;
+                document.getElementById('btn-speak').disabled = false;
+                log('會話建立成功: ' + avatarSession.sessionId);
             } catch (error) {
-                TestUtils.log('❌ 建立自定義超時會話失敗:', error.message);
+                log('建立會話失敗: ' + error.message);
+                updateSessionStatus('錯誤', '#f87171');
+                document.getElementById('btn-start').disabled = false;
             }
         }
 
-        async function testSendKeepalive() {
-            TestUtils.logFunctionCall('testSendKeepalive', '發送 Keepalive');
+        async function stopSession() {
+            try {
+                if (avatarSession) {
+                    await avatarSession.stop();
+                    avatarSession = null;
+                }
+                document.getElementById('avatar-video').style.display = 'none';
+                document.getElementById('avatar-placeholder').classList.remove('hidden');
+                updateSessionStatus('已斷線', '#a6adc8');
+                resetButtons();
+                log('會話已結束');
+            } catch (error) {
+                log('結束會話失敗: ' + error.message);
+            }
+        }
+
+        function interruptAvatar() {
+            if (avatarSession) {
+                avatarSession.interrupt();
+                log('已中斷說話');
+            }
+        }
+
+        function resetButtons() {
+            document.getElementById('btn-start').disabled = false;
+            document.getElementById('btn-interrupt').disabled = true;
+            document.getElementById('btn-stop').disabled = true;
+            document.getElementById('btn-speak').disabled = true;
+        }
+
+        // --- Speak ---
+        function speakText() {
+            const text = document.getElementById('speak-text').value.trim();
+            if (!text || !avatarSession) return;
+            avatarSession.speak(text);
+            log('發送文字: ' + text);
+        }
+
+        function quickSpeak(text) {
+            if (!avatarSession) {
+                log('請先建立會話');
+                return;
+            }
+            document.getElementById('speak-text').value = text;
+            avatarSession.speak(text);
+            log('快速發送: ' + text);
+        }
+
+        // --- STT ---
+        async function toggleRecording() {
+            if (isRecording) {
+                await stopRecording();
+            } else {
+                await startRecording();
+            }
+        }
+
+        async function startRecording() {
+            if (isRecording) return;
+            const micBtn = document.getElementById('mic-btn');
 
             try {
-                if (!Avatar || !Avatar.heygenDirectSession) {
-                    throw new Error('沒有活動的 HeyGen Direct 會話');
-                }
+                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(mediaStream);
+                const processor = audioContext.createScriptProcessor(1024, 1, 1);
+                const ratio = audioContext.sampleRate / 16000;
 
-                const sessionId = Avatar.heygenDirectSession.sessionId;
-                TestUtils.log(`📡 向會話 ${sessionId} 發送 keepalive...`);
+                sttSession = await client.startSTT({ language: 'zh-TW' });
 
-                const response = await fetch(`${API_BASE_URL}/heygen-direct/session/${sessionId}/keepalive`, {
-                    method: 'POST',
-                    headers: {
-                        'x-api-key': Util.getConfig('avaterApiKey')
-                    }
+                sttSession.onRecognizing((r) => {
+                    document.getElementById('transcript').textContent = r.text + '...';
                 });
-
-                const data = await response.json();
-                if (data.success) {
-                    TestUtils.log('✅ Keepalive 發送成功，計時器已重置');
-
-                    // 同步重置前端的會話計時
-                    if (Avatar.sessionCreatedAt) {
-                        Avatar.sessionCreatedAt = new Date();
-                        TestUtils.log('🔄 前端會話計時也已重置');
-                    }
-                } else {
-                    throw new Error(data.error || '發送失敗');
-                }
-            } catch (error) {
-                TestUtils.log('❌ 發送 Keepalive 失敗:', error.message);
-            }
-        }
-
-        // 2. 聲音控制測試
-        async function testEnableAudio() {
-            TestUtils.logFunctionCall('testEnableAudio', '初始化音頻（解決瀏覽器自動播放限制）');
-
-            try {
-                // 檢查 Avatar 狀態
-                if (!Avatar) {
-                    throw new Error('Avatar 對象未載入');
-                }
-
-                // 詳細檢查 Avatar.player 狀態
-                TestUtils.log('🔍 檢查 Avatar.player 狀態:');
-                TestUtils.log(`- Avatar.player 存在: ${!!Avatar.player}`);
-                if (Avatar.player) {
-                    TestUtils.log(`- Avatar.player 類型: ${typeof Avatar.player}`);
-                    TestUtils.log(`- 有 enableAudio 方法: ${typeof Avatar.player.enableAudio === 'function'}`);
-                    TestUtils.log(`- Avatar.player 建構子: ${Avatar.player.constructor.name}`);
-                }
-
-                // 先檢查是否有新的 HeyGenPlayer 實例
-                if (Avatar.player && typeof Avatar.player.enableAudio === 'function') {
-                    TestUtils.log('✅ 找到 HeyGenPlayer，使用新 API...');
-                    const success = await Avatar.player.enableAudio();
-                    if (success) {
-                        TestUtils.log('✅ 音頻權限初始化成功（可以自動播放音頻）');
-                    } else {
-                        TestUtils.log('⚠️ 音頻初始化需要用戶互動（瀏覽器自動播放限制）');
-                        TestUtils.log('💡 請在用戶點擊按鈕時呼叫此功能');
-                    }
-                    return;
-                }
-
-                // 備用方案：直接操作 video 元素
-                TestUtils.log('⚠️ 找不到新的 HeyGenPlayer API，使用直接操作 video 元素...');
-                const videoElement = document.getElementById('heygen-video');
-                if (videoElement) {
-                    TestUtils.log(`📺 Video 元素狀態: paused=${videoElement.paused}, muted=${videoElement.muted}`);
-                    videoElement.muted = false;
-                    try {
-                        if (videoElement.paused) {
-                            await videoElement.play();
-                        }
-                        TestUtils.log('✅ 透過直接操作 video 元素啟用聲音成功');
-                    } catch (e) {
-                        TestUtils.log('⚠️ 需要用戶互動才能啟用聲音:', e.message);
-                    }
-                } else {
-                    throw new Error('找不到 video 元素');
-                }
-            } catch (error) {
-                TestUtils.log('❌ 啟用聲音失敗:', error.message);
-                TestUtils.log('💡 建議：先點擊「開始對話」按鈕初始化 Avatar');
-            }
-        }
-
-        function testMuteAudio() {
-            TestUtils.logFunctionCall('testMuteAudio', '靜音');
-
-            try {
-                if (!Avatar) {
-                    throw new Error('Avatar 對象未載入');
-                }
-
-                if (!Avatar.player) {
-                    TestUtils.log('⚠️ Avatar.player 未找到，嘗試直接操作 video 元素...');
-                    const videoElement = document.getElementById('heygen-video');
-                    if (videoElement) {
-                        videoElement.muted = true;
-                        TestUtils.log('✅ 透過直接操作 video 元素靜音成功');
-                        return;
-                    } else {
-                        throw new Error('找不到 video 元素');
-                    }
-                }
-
-                // 檢查 mute 方法是否存在
-                if (typeof Avatar.player.mute === 'function') {
-                    Avatar.player.mute();
-                    TestUtils.log('✅ 已靜音');
-                } else if (typeof Avatar.player.disableAudio === 'function') {
-                    Avatar.player.disableAudio();
-                    TestUtils.log('✅ 已靜音 (使用 disableAudio)');
-                } else if (Avatar.player.videoElement || Avatar.player.audioElement) {
-                    // 直接控制媒體元素
-                    let muted = false;
-                    if (Avatar.player.videoElement) {
-                        Avatar.player.videoElement.muted = true;
-                        muted = true;
-                        TestUtils.log('✅ Video 元素已靜音');
-                    }
-                    if (Avatar.player.audioElement) {
-                        Avatar.player.audioElement.muted = true;
-                        muted = true;
-                        TestUtils.log('✅ Audio 元素已靜音');
-                    }
-                    if (muted) {
-                        TestUtils.log('✅ 已靜音 (透過媒體元素)');
-                    }
-                } else {
-                    TestUtils.log('⚠️ player 物件沒有 mute 方法或媒體元素');
-                    TestUtils.log('可用屬性:', Object.keys(Avatar.player));
-                }
-            } catch (error) {
-                TestUtils.log('❌ 靜音失敗:', error.message);
-            }
-        }
-
-        function testUnmuteAudio() {
-            TestUtils.logFunctionCall('testUnmuteAudio', '取消靜音');
-
-            try {
-                if (!Avatar) {
-                    throw new Error('Avatar 對象未載入');
-                }
-
-                if (!Avatar.player) {
-                    TestUtils.log('⚠️ Avatar.player 未找到，嘗試直接操作 video 元素...');
-                    const videoElement = document.getElementById('heygen-video');
-                    if (videoElement) {
-                        videoElement.muted = false;
-                        TestUtils.log('✅ 透過直接操作 video 元素取消靜音成功');
-                        return;
-                    } else {
-                        throw new Error('找不到 video 元素');
-                    }
-                }
-
-                // 檢查 unmute 方法是否存在
-                if (typeof Avatar.player.unmute === 'function') {
-                    Avatar.player.unmute();
-                    TestUtils.log('✅ 已取消靜音');
-                } else if (typeof Avatar.player.enableAudio === 'function') {
-                    Avatar.player.enableAudio();
-                    TestUtils.log('✅ 已取消靜音 (使用 enableAudio)');
-                } else if (Avatar.player.videoElement || Avatar.player.audioElement) {
-                    // 直接控制媒體元素
-                    let unmuted = false;
-                    if (Avatar.player.videoElement) {
-                        Avatar.player.videoElement.muted = false;
-                        unmuted = true;
-                        TestUtils.log('✅ Video 元素已取消靜音');
-                    }
-                    if (Avatar.player.audioElement) {
-                        Avatar.player.audioElement.muted = false;
-                        unmuted = true;
-                        TestUtils.log('✅ Audio 元素已取消靜音');
-                    }
-                    if (unmuted) {
-                        TestUtils.log('✅ 已取消靜音 (透過媒體元素)');
-                    }
-                } else {
-                    TestUtils.log('⚠️ player 物件沒有 unmute 方法或媒體元素');
-                    TestUtils.log('可用屬性:', Object.keys(Avatar.player));
-                }
-            } catch (error) {
-                TestUtils.log('❌ 取消靜音失敗:', error.message);
-            }
-        }
-
-        function testSetVolume(value) {
-            TestUtils.logFunctionCall('testSetVolume', `設定音量: ${value}%`);
-
-            try {
-                if (!Avatar) {
-                    throw new Error('Avatar 對象未載入');
-                }
-
-                const volume = value / 100;
-
-                if (!Avatar.player) {
-                    TestUtils.log('⚠️ Avatar.player 未找到，嘗試直接操作 video 元素...');
-                    const videoElement = document.getElementById('heygen-video');
-                    if (videoElement) {
-                        videoElement.volume = volume;
-                        document.getElementById('volume-value').textContent = `${value}%`;
-                        TestUtils.log(`✅ 透過直接操作 video 元素設定音量為 ${value}%`);
-                        return;
-                    } else {
-                        throw new Error('找不到 video 元素');
-                    }
-                }
-
-                // 檢查 setVolume 方法是否存在
-                if (typeof Avatar.player.setVolume === 'function') {
-                    Avatar.player.setVolume(volume);
-                    document.getElementById('volume-value').textContent = `${value}%`;
-                    TestUtils.log(`✅ 音量已設定為 ${value}%`);
-                } else if (Avatar.player.videoElement || Avatar.player.audioElement) {
-                    // 直接控制媒體元素
-                    if (Avatar.player.videoElement) {
-                        Avatar.player.videoElement.volume = volume;
-                        TestUtils.log(`✅ Video 元素音量已設定為 ${value}%`);
-                    }
-                    if (Avatar.player.audioElement) {
-                        Avatar.player.audioElement.volume = volume;
-                        TestUtils.log(`✅ Audio 元素音量已設定為 ${value}%`);
-                    }
-                    document.getElementById('volume-value').textContent = `${value}%`;
-                    TestUtils.log(`✅ 音量已設定為 ${value}% (透過媒體元素)`);
-                } else {
-                    TestUtils.log('⚠️ player 物件沒有 setVolume 方法或媒體元素');
-                    TestUtils.log('可用屬性:', Object.keys(Avatar.player));
-                }
-            } catch (error) {
-                TestUtils.log('❌ 設定音量失敗:', error.message);
-            }
-        }
-
-        // 3. 播放控制測試
-        function testPausePlayback() {
-            TestUtils.logFunctionCall('testPausePlayback', '暫停播放');
-
-            try {
-                if (!Avatar) {
-                    throw new Error('Avatar 對象未載入');
-                }
-
-                if (!Avatar.player) {
-                    TestUtils.log('⚠️ Avatar.player 未找到，嘗試直接操作 video 元素...');
-                    const videoElement = document.getElementById('heygen-video');
-                    if (videoElement && !videoElement.paused) {
-                        videoElement.pause();
-                        TestUtils.log('✅ 透過直接操作 video 元素暫停成功');
-                        return;
-                    } else if (videoElement && videoElement.paused) {
-                        TestUtils.log('ℹ️ Video 元素已經處於暫停狀態');
-                        return;
-                    } else {
-                        throw new Error('找不到 video 元素');
-                    }
-                }
-
-                Avatar.player.pause();
-                TestUtils.log('✅ 播放已暫停');
-            } catch (error) {
-                TestUtils.log('❌ 暫停播放失敗:', error.message);
-            }
-        }
-
-        async function testResumePlayback() {
-            TestUtils.logFunctionCall('testResumePlayback', '恢復播放');
-
-            try {
-                if (!Avatar) {
-                    throw new Error('Avatar 對象未載入');
-                }
-
-                if (!Avatar.player) {
-                    TestUtils.log('⚠️ Avatar.player 未找到，嘗試直接操作 video 元素...');
-                    const videoElement = document.getElementById('heygen-video');
-                    if (videoElement && videoElement.paused) {
-                        try {
-                            await videoElement.play();
-                            TestUtils.log('✅ 透過直接操作 video 元素恢復播放成功');
-                            return;
-                        } catch (e) {
-                            TestUtils.log('⚠️ 恢復播放需要用戶互動:', e.message);
-                            return;
-                        }
-                    } else if (videoElement && !videoElement.paused) {
-                        TestUtils.log('ℹ️ Video 元素已經在播放中');
-                        return;
-                    } else {
-                        throw new Error('找不到 video 元素');
-                    }
-                }
-
-                await Avatar.player.resume();
-                TestUtils.log('✅ 播放已恢復');
-            } catch (error) {
-                TestUtils.log('❌ 恢復播放失敗:', error.message);
-            }
-        }
-
-        function testGetPlaybackState() {
-            TestUtils.logFunctionCall('testGetPlaybackState', '檢查播放狀態');
-
-            try {
-                if (!Avatar) {
-                    throw new Error('Avatar 對象未載入');
-                }
-
-                if (!Avatar.player) {
-                    TestUtils.log('⚠️ Avatar.player 未找到，嘗試直接檢查 video 元素...');
-                    const videoElement = document.getElementById('heygen-video');
-                    if (videoElement) {
-                        const state = videoElement.paused ? 'paused' : 'playing';
-                        const volume = Math.round(videoElement.volume * 100);
-                        TestUtils.log('📊 Video 元素狀態:', {
-                            state: state,
-                            paused: videoElement.paused,
-                            muted: videoElement.muted,
-                            volume: `${volume}%`,
-                            currentTime: videoElement.currentTime.toFixed(2) + 's'
-                        });
-                        return;
-                    } else {
-                        throw new Error('找不到 video 元素');
-                    }
-                }
-
-                const state = Avatar.player.getPlaybackState();
-                const isPlaying = Avatar.player.isPlaying();
-                const isMuted = Avatar.player.isMuted();
-                const volume = Avatar.player.getVolume();
-
-                TestUtils.log('📊 播放狀態:', {
-                    state: state,
-                    isPlaying: isPlaying,
-                    isMuted: isMuted,
-                    volume: `${(volume * 100).toFixed(0)}%`
+                sttSession.onResult((r) => {
+                    document.getElementById('transcript').textContent = r.text;
+                    document.getElementById('speak-text').value = r.text;
+                    log('STT 結果: ' + r.text);
                 });
-            } catch (error) {
-                TestUtils.log('❌ 檢查播放狀態失敗:', error.message);
-            }
-        }
+                sttSession.onError((e) => log('STT 錯誤: ' + e));
 
-        async function testSpeakFunction() {
-            TestUtils.logFunctionCall('testSpeakFunction', '測試語音合成');
-
-            try {
-                if (!Avatar || !Avatar.directSession) {
-                    throw new Error('沒有活動的 Avatar 會話');
-                }
-
-                const testText = '您好！這是 AI3-STTS 新功能測試。正在測試語音合成功能。';
-                TestUtils.log(`🗣️ 發送語音合成: "${testText}"`);
-
-                const result = await Avatar.directSession.speak(testText);
-                if (result.success) {
-                    TestUtils.log('✅ 語音合成請求成功');
-                } else {
-                    throw new Error(result.error || '語音合成失敗');
-                }
-            } catch (error) {
-                TestUtils.log('❌ 測試語音合成失敗:', error.message);
-            }
-        }
-
-        // 4. STT 解耦測試
-        function testCreateWithSTT() {
-            TestUtils.logFunctionCall('testCreateWithSTT', '重新初始化（啟用 STT）');
-
-            try {
-                if (Avatar && Avatar.client) {
-                    Avatar.client.setSTTEnabled(true);
-                    TestUtils.log('✅ STT 已啟用');
-                } else {
-                    TestUtils.log('⚠️ 找不到 Avatar.client，將重新載入頁面');
-                    // 可以在此處重新初始化 Avatar，或者重新載入頁面
-                    location.reload();
-                }
-            } catch (error) {
-                TestUtils.log('❌ 啟用 STT 失敗:', error.message);
-            }
-        }
-
-        function testCreateWithoutSTT() {
-            TestUtils.logFunctionCall('testCreateWithoutSTT', '重新初始化（停用 STT）');
-
-            try {
-                if (Avatar && Avatar.client) {
-                    Avatar.client.setSTTEnabled(false);
-                    TestUtils.log('✅ STT 已停用');
-                } else {
-                    TestUtils.log('⚠️ 找不到 Avatar.client，將重新載入頁面');
-                    location.reload();
-                }
-            } catch (error) {
-                TestUtils.log('❌ 停用 STT 失敗:', error.message);
-            }
-        }
-
-        function testToggleSTT() {
-            TestUtils.logFunctionCall('testToggleSTT', '切換 STT 狀態');
-
-            try {
-                if (!Avatar || !Avatar.client) {
-                    throw new Error('沒有 Avatar.client 實例');
-                }
-
-                const currentStatus = Avatar.client.isSTTEnabled();
-                Avatar.client.setSTTEnabled(!currentStatus);
-                TestUtils.log(`✅ STT 狀態已切換為: ${!currentStatus ? '啟用' : '停用'}`);
-            } catch (error) {
-                TestUtils.log('❌ 切換 STT 狀態失敗:', error.message);
-            }
-        }
-
-        function testCheckSTTStatus() {
-            TestUtils.logFunctionCall('testCheckSTTStatus', '檢查 STT 狀態');
-
-            try {
-                if (!Avatar || !Avatar.client) {
-                    throw new Error('沒有 Avatar.client 實例');
-                }
-
-                const enabled = Avatar.client.isSTTEnabled();
-                TestUtils.log(`📊 STT 狀態: ${enabled ? '✅ 已啟用' : '❌ 已停用'}`);
-
-                // 如果啟用，嘗試測試 STT 功能
-                if (enabled) {
-                    TestUtils.log('🔍 STT 已啟用，可以使用錄音功能');
-                } else {
-                    TestUtils.log('⚠️ STT 已停用，錄音功能將無法使用');
-                }
-            } catch (error) {
-                TestUtils.log('❌ 檢查 STT 狀態失敗:', error.message);
-            }
-        }
-
-        // ======== 診斷工具 ========
-
-        function testDiagnoseAvatar() {
-            TestUtils.logFunctionCall('testDiagnoseAvatar', '診斷 Avatar 狀態');
-
-            try {
-                if (!Avatar) {
-                    TestUtils.log('❌ Avatar 對象不存在');
-                    return;
-                }
-
-                TestUtils.log('📊 Avatar 完整狀態診斷:');
-                TestUtils.log('=== 基本屬性 ===');
-                TestUtils.log(`- isInitialized: ${Avatar.isInitialized}`);
-                TestUtils.log(`- avatarId: ${Avatar.avatarId}`);
-                TestUtils.log(`- voiceId: ${Avatar.voiceId}`);
-                TestUtils.log(`- enableSTT: ${Avatar.enableSTT}`);
-
-                TestUtils.log('=== 客戶端狀態 ===');
-                TestUtils.log(`- client 存在: ${!!Avatar.client}`);
-                if (Avatar.client) {
-                    TestUtils.log(`- client 類型: ${typeof Avatar.client}`);
-                    TestUtils.log(`- client 建構子: ${Avatar.client.constructor.name}`);
-                }
-
-                TestUtils.log('=== 會話狀態 ===');
-                TestUtils.log(`- directSession 存在: ${!!Avatar.directSession}`);
-                if (Avatar.directSession) {
-                    TestUtils.log(`- directSession 類型: ${typeof Avatar.directSession}`);
-                    TestUtils.log(`- directSession 建構子: ${Avatar.directSession.constructor.name}`);
-                    if (Avatar.directSession.sessionId) {
-                        TestUtils.log(`- sessionId: ${Avatar.directSession.sessionId}`);
+                processor.onaudioprocess = (e) => {
+                    if (sttSession && isRecording) {
+                        const input = e.inputBuffer.getChannelData(0);
+                        sttSession.sendAudio(convertToPCM16(resample(input, ratio)));
                     }
-                    if (Avatar.directSession.getState) {
-                        TestUtils.log(`- 會話狀態: ${Avatar.directSession.getState()}`);
-                    }
-                }
+                };
 
-                TestUtils.log('=== 播放器狀態 ===');
-                TestUtils.log(`- player 存在: ${!!Avatar.player}`);
-                if (Avatar.player) {
-                    TestUtils.log(`- player 類型: ${typeof Avatar.player}`);
-                    TestUtils.log(`- player 建構子: ${Avatar.player.constructor.name}`);
+                source.connect(processor);
+                processor.connect(audioContext.destination);
 
-                    const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(Avatar.player));
-                    TestUtils.log(`- 可用方法數量: ${methods.length}`);
-                    TestUtils.log(`- 關鍵方法: ${methods.filter(m => ['enableAudio', 'setVolume', 'mute', 'pause'].includes(m)).join(', ')}`);
-
-                    // 檢查新功能方法
-                    const newFeatures = ['enableAudio', 'setVolume', 'mute', 'unmute', 'pause', 'resume', 'getPlaybackState'];
-                    TestUtils.log('- 新功能支援:');
-                    newFeatures.forEach(method => {
-                        TestUtils.log(`  ${method}: ${typeof Avatar.player[method] === 'function' ? '✅' : '❌'}`);
-                    });
-                }
-
-                TestUtils.log('=== STT 狀態 ===');
-                TestUtils.log(`- sttSession 存在: ${!!Avatar.sttSession}`);
-                TestUtils.log(`- isRecording: ${Avatar.isRecording}`);
-
+                isRecording = true;
+                micBtn.textContent = '🛑 停止語音辨識';
+                micBtn.classList.add('recording');
+                log('開始語音辨識');
             } catch (error) {
-                TestUtils.log('❌ 診斷失敗:', error.message);
+                log('語音辨識失敗: ' + error.message);
             }
         }
 
-        function testCheckVideoElement() {
-            TestUtils.logFunctionCall('testCheckVideoElement', '檢查 Video 元素');
+        async function stopRecording() {
+            isRecording = false;
+            const micBtn = document.getElementById('mic-btn');
 
-            try {
-                const videoElement = document.getElementById('heygen-video');
-                if (!videoElement) {
-                    TestUtils.log('❌ 找不到 heygen-video 元素');
-                    return;
-                }
+            if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+            if (audioContext) { await audioContext.close(); audioContext = null; }
+            if (sttSession) { sttSession.stop(); sttSession = null; }
 
-                TestUtils.log('📺 Video 元素詳細狀態:');
-                TestUtils.log(`- 元素存在: ✅`);
-                TestUtils.log(`- 標籤類型: ${videoElement.tagName}`);
-                TestUtils.log(`- 是否暫停: ${videoElement.paused}`);
-                TestUtils.log(`- 是否靜音: ${videoElement.muted}`);
-                TestUtils.log(`- 音量: ${Math.round(videoElement.volume * 100)}%`);
-                TestUtils.log(`- 播放時間: ${videoElement.currentTime.toFixed(2)}s`);
-                TestUtils.log(`- 總時長: ${videoElement.duration ? videoElement.duration.toFixed(2) + 's' : '未知'}`);
-                TestUtils.log(`- 播放速度: ${videoElement.playbackRate}`);
-                TestUtils.log(`- 自動播放: ${videoElement.autoplay}`);
-                TestUtils.log(`- 迴圈播放: ${videoElement.loop}`);
-                TestUtils.log(`- 控制按鈕: ${videoElement.controls}`);
-                TestUtils.log(`- 可見性: ${videoElement.style.display || '預設'}`);
-                TestUtils.log(`- 尺寸: ${videoElement.offsetWidth} x ${videoElement.offsetHeight}`);
+            micBtn.textContent = '🎤 開始語音辨識';
+            micBtn.classList.remove('recording');
+            log('停止語音辨識');
+        }
 
-                if (videoElement.src || videoElement.srcObject) {
-                    TestUtils.log(`- 來源: ${videoElement.src ? 'src' : 'srcObject'}`);
-                    if (videoElement.srcObject) {
-                        TestUtils.log(`- srcObject 類型: ${videoElement.srcObject.constructor.name}`);
-                    }
-                }
-
-                // 測試基本控制
-                TestUtils.log('🔧 測試基本控制能力:');
-                TestUtils.log(`- 可暫停: ${typeof videoElement.pause === 'function' ? '✅' : '❌'}`);
-                TestUtils.log(`- 可播放: ${typeof videoElement.play === 'function' ? '✅' : '❌'}`);
-                TestUtils.log(`- 支援音量控制: ✅`);
-                TestUtils.log(`- 支援靜音控制: ✅`);
-
-            } catch (error) {
-                TestUtils.log('❌ 檢查 Video 元素失敗:', error.message);
+        // --- Audio Utils ---
+        function resample(input, ratio) {
+            if (ratio <= 1) return input;
+            const len = Math.floor(input.length / ratio);
+            const out = new Float32Array(len);
+            for (let i = 0; i < len; i++) {
+                const idx = i * ratio;
+                const f = Math.floor(idx);
+                const frac = idx - f;
+                out[i] = f + 1 < input.length ? input[f] * (1 - frac) + input[f + 1] * frac : input[f];
             }
+            return out;
+        }
+
+        function convertToPCM16(input) {
+            const buf = new ArrayBuffer(input.length * 2);
+            const view = new DataView(buf);
+            for (let i = 0; i < input.length; i++) {
+                const s = Math.max(-1, Math.min(1, input[i]));
+                view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+            }
+            return buf;
         }
     </script>
 </body>

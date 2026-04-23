@@ -1,8 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
 import { SttModule } from './stt/stt.module';
-import { HeygenModule } from './heygen/heygen.module';
+import { LiveavatarModule } from './liveavatar/liveavatar.module';
 
 @Module({
   imports: [
@@ -10,9 +9,8 @@ import { HeygenModule } from './heygen/heygen.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    ScheduleModule.forRoot(),
-    SttModule, 
-    HeygenModule
+    SttModule,
+    LiveavatarModule,
   ],
 })
 export class AppModule {}

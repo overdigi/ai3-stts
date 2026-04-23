@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ai3-stts
+    runtime: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LIVEAVATAR_API_KEY
+        sync: false
+      - key: LIVEAVATAR_API_URL
+        value: https://api.liveavatar.com
+      - key: AVATAR_ID
+        sync: false
+      - key: VOICE_ID
+        sync: false
+      - key: API_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: AZURE_SPEECH_KEY
+        sync: false
+      - key: AZURE_SPEECH_REGION
+        sync: false

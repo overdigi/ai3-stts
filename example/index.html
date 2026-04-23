@@ -3,16 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="pragma" content="no-cache">
-    <meta http-equiv="expires" content="0">
-    <title>AI3-STTS Demo - 1966長照專線</title>
+    <title>AI3-STTS Demo — LiveAvatar</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -25,12 +18,11 @@
 
         .container {
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
             background: white;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             overflow: hidden;
-            position: relative;
         }
 
         .header {
@@ -40,333 +32,192 @@
             display: flex;
             align-items: center;
             gap: 10px;
-        }
-
-        .avatar-icon {
-            width: 30px;
-            height: 30px;
-            background: #ff6b35;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-
-        .header-text {
-            flex: 1;
-        }
-
-        .header-title {
-            font-size: 16px;
             font-weight: 600;
-            margin-bottom: 2px;
         }
 
-        .heygen-container {
+        .avatar-container {
             width: 100%;
-            height: 300px;
-            background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+            height: 320px;
+            background: #1a1a2e;
             position: relative;
             overflow: hidden;
         }
 
-        .heygen-iframe {
+        .avatar-container video {
             width: 100%;
             height: 100%;
-            border: none;
+            object-fit: cover;
         }
 
-        .transcript-area {
-            background: #f8f9fa;
-            min-height: 120px;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-
-        .transcript-content {
+        .avatar-placeholder {
             width: 100%;
-            text-align: center;
-            color: #666;
-            font-size: 16px;
-            line-height: 1.5;
-        }
-
-        .transcript-text {
-            color: #333;
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-
-        .mic-button {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            border: none;
-            background: #ff6b35;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            height: 100%;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            z-index: 10000; /* 確保按鈕在最上層 */
-        }
-
-        .mic-button:hover {
-            background: #e55a2b;
-            transform: scale(1.1);
-        }
-
-        .mic-button.recording {
-            background: #dc3545;
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-
-        .input-area {
-            padding: 15px 20px;
-            background: white;
-            border-top: 1px solid #eee;
-        }
-
-        .text-input {
-            width: 100%;
-            min-height: 60px;
-            max-height: 120px;
-            padding: 10px;
-            border: 1px solid #e1e8ed;
-            border-radius: 8px;
-            font-size: 16px;
-            font-family: inherit;
-            resize: vertical;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .text-input:focus {
-            border-color: #4a90e2;
-        }
-
-        .input-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px;
-        }
-
-        .input-counter {
-            color: #999;
-            font-size: 12px;
-        }
-
-        .send-button {
-            padding: 8px 16px;
-            background: #4a90e2;
-            color: white;
-            border: none;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .send-button:hover {
-            background: #357abd;
-            transform: translateY(-1px);
-        }
-
-        .send-button:active {
-            transform: translateY(0);
-        }
-
-        .status-indicator {
-            position: absolute;
-            top: 10px;
-            left: 20px;
-            background: rgba(255,255,255,0.9);
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .status-ready {
-            color: #28a745;
-        }
-
-        .status-listening {
-            color: #ffc107;
-        }
-
-        .status-processing {
-            color: #007bff;
-        }
-
-        .status-error {
-            color: #dc3545;
-        }
-
-        .permission-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .permission-content {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            max-width: 300px;
-            text-align: center;
-        }
-
-        .permission-icon {
-            width: 60px;
-            height: 60px;
-            background: #ff6b35;
-            border-radius: 50%;
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 30px;
-            color: white;
-        }
-
-        .permission-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-
-        .permission-text {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 20px;
-            line-height: 1.5;
-        }
-
-        .permission-buttons {
-            display: flex;
+            color: rgba(255,255,255,0.6);
             gap: 10px;
         }
 
-        .btn {
+        .avatar-placeholder .icon { font-size: 48px; }
+
+        .status-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        .status-badge.ready { color: #4ade80; }
+        .status-badge.speaking { color: #facc15; }
+        .status-badge.error { color: #f87171; }
+
+        .transcript-area {
+            background: #f8f9fa;
+            min-height: 80px;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .transcript-text {
             flex: 1;
-            padding: 10px 15px;
+            color: #333;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .mic-button {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: #ff6b35;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        .mic-button:hover { background: #e55a2b; transform: scale(1.05); }
+        .mic-button.recording { background: #dc3545; animation: pulse 1s infinite; }
+        @keyframes pulse { 50% { transform: scale(1.1); } }
+
+        .input-area {
+            padding: 12px 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .text-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            min-height: 42px;
+            max-height: 100px;
+        }
+        .text-input:focus { border-color: #4a90e2; }
+
+        .send-button {
+            padding: 10px 16px;
+            background: #4a90e2;
+            color: white;
             border: none;
             border-radius: 8px;
             font-size: 14px;
-            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .send-button:hover { background: #357abd; }
+        .send-button:disabled { background: #ccc; cursor: not-allowed; }
+
+        .controls {
+            padding: 10px 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 8px;
         }
 
-        .btn-primary {
-            background: #4a90e2;
-            color: white;
+        .ctrl-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            font-size: 12px;
+            cursor: pointer;
         }
+        .ctrl-btn:hover { background: #f0f0f0; }
+        .ctrl-btn.danger { color: #dc3545; border-color: #dc3545; }
 
-        .btn-primary:hover {
-            background: #357abd;
-        }
-
-        .btn-secondary {
-            background: #f8f9fa;
-            color: #666;
-        }
-
-        .btn-secondary:hover {
-            background: #e9ecef;
-        }
-
-        .hidden {
-            display: none;
-        }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
-            <div class="avatar-icon">🤖</div>
-            <div class="header-text">
-                <div class="header-title">1966長照專線</div>
-            </div>
+            <span>AI3-STTS LiveAvatar Demo</span>
         </div>
 
-        <!-- HeyGen Avatar -->
-        <div class="heygen-container">
-            <iframe id="heygen-iframe" class="heygen-iframe"></iframe>
-            <div class="status-indicator status-ready" id="status-indicator">
-                準備就緒
+        <!-- Avatar Video Area -->
+        <div class="avatar-container" id="avatar-container">
+            <video id="avatar-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;display:none;"></video>
+            <div class="avatar-placeholder" id="avatar-placeholder">
+                <div class="icon">🤖</div>
+                <div>點擊「建立會話」啟動 Avatar</div>
             </div>
+            <div class="status-badge" id="status-badge">未連線</div>
         </div>
 
-        <!-- Transcript Area -->
+        <!-- Transcript -->
         <div class="transcript-area">
-            <div class="transcript-content" id="transcript-content">
-                <div class="transcript-text" id="transcript-text">點擊麥克風開始說話</div>
-            </div>
-            <button class="mic-button" id="mic-button">
-                🎤
-            </button>
+            <div class="transcript-text" id="transcript-text">點擊麥克風開始語音輸入</div>
+            <button class="mic-button" id="mic-button">🎤</button>
         </div>
 
-        <!-- Input Area -->
+        <!-- Text Input -->
         <div class="input-area">
-            <textarea id="text-input" class="text-input" placeholder="想要問什麼都可以？" maxlength="1000"></textarea>
-            <div class="input-footer">
-                <div class="input-counter" id="input-counter">0/1000</div>
-                <button class="send-button" id="send-button">
-                    發送 ➤
-                </button>
-            </div>
+            <textarea class="text-input" id="text-input" placeholder="輸入文字讓 Avatar 說話..." rows="1"></textarea>
+            <button class="send-button" id="send-button">發送</button>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button class="ctrl-btn" id="start-btn" onclick="startSession()">建立會話</button>
+            <button class="ctrl-btn" id="interrupt-btn" onclick="interruptAvatar()" disabled>中斷</button>
+            <button class="ctrl-btn danger" id="stop-btn" onclick="stopSession()" disabled>結束會話</button>
         </div>
     </div>
 
-    <!-- Permission Modal -->
-    <div class="permission-modal hidden" id="permission-modal">
-        <div class="permission-content">
-            <div class="permission-icon">🎤</div>
-            <div class="permission-title">要允許「1966長照專線」使用你的麥克風嗎？</div>
-            <div class="permission-text">使用於輸入語音服務，不會儲存或寄出任何作品，詳見隱私權政策。</div>
-            <div class="permission-buttons">
-                <button class="btn btn-secondary" onclick="denyPermission()">不允許</button>
-                <button class="btn btn-primary" onclick="allowPermission()">允許</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Socket.io -->
+    <!-- Dependencies -->
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
-    <!-- AI3-STTS SDK -->
+    <!-- EventEmitter polyfill: LiveAvatar SDK UMD 需要 events 模組 -->
+    <script>
+    window.events$1 = { EventEmitter: class EventEmitter {
+        constructor() { this._e = {}; }
+        on(e, f) { (this._e[e] = this._e[e] || []).push(f); return this; }
+        off(e, f) { const l = this._e[e]; if (l) this._e[e] = l.filter(x => x !== f); return this; }
+        emit(e, ...a) { (this._e[e] || []).forEach(f => f(...a)); return this; }
+        once(e, f) { const w = (...a) => { this.off(e, w); f(...a); }; return this.on(e, w); }
+        removeAllListeners(e) { if (e) delete this._e[e]; else this._e = {}; return this; }
+        addListener(e, f) { return this.on(e, f); }
+        removeListener(e, f) { return this.off(e, f); }
+        listenerCount(e) { return (this._e[e] || []).length; }
+    }};
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@heygen/liveavatar-web-sdk/dist/index.umd.js"></script>
     <script src="ai3-stts.js"></script>
-    <!-- App Script -->
     <script src="app.js"></script>
 </body>
 </html>
