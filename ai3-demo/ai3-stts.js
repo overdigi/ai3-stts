@@ -159,6 +159,8 @@
                 voiceChat: false,
             });
             // 3. Bind events
+            const keepAliveMs = (_b = options.keepAliveIntervalMs) !== null && _b !== void 0 ? _b : 20000;
+            let keepAliveTimer = null;
             const standardEvents = [
                 'avatar_start_talking',
                 'avatar_stop_talking',
@@ -184,6 +186,10 @@
                 var _a, _b, _c;
                 const reason = (_a = eventData === null || eventData === void 0 ? void 0 : eventData.stop_reason) !== null && _a !== void 0 ? _a : 'UNKNOWN_REASON';
                 console.log(`[AI3STTS] Session stopped. reason=${reason}`, eventData || '');
+                if (keepAliveTimer) {
+                    clearInterval(keepAliveTimer);
+                    keepAliveTimer = null;
+                }
                 (_b = options.onEvent) === null || _b === void 0 ? void 0 : _b.call(options, 'session.stopped', Object.assign(Object.assign({}, eventData), { stop_reason: reason }));
                 (_c = options.onStopped) === null || _c === void 0 ? void 0 : _c.call(options, reason);
                 if (!RECONNECTABLE_REASONS.has(reason)) {
@@ -214,15 +220,13 @@
                     console.warn(`[AI3STTS] maxSessionDuration mismatch! requested=${options.maxSessionDuration}s, server=${session.maxSessionDuration}s`);
                 }
             }
-            console.log(`[AI3STTS] maxSessionDuration=${(_b = session.maxSessionDuration) !== null && _b !== void 0 ? _b : 'unknown'}s`);
+            console.log(`[AI3STTS] maxSessionDuration=${(_c = session.maxSessionDuration) !== null && _c !== void 0 ? _c : 'unknown'}s`);
             // 6. Attach media element after session is ready
             if (options.mediaElement) {
                 session.attach(options.mediaElement);
                 console.log('[AI3STTS] Media element attached');
             }
             // 7. Keep-alive to prevent IDLE_TIMEOUT
-            const keepAliveMs = (_c = options.keepAliveIntervalMs) !== null && _c !== void 0 ? _c : 20000;
-            let keepAliveTimer = null;
             if (typeof session.keepAlive === 'function') {
                 keepAliveTimer = setInterval(() => {
                     try {
@@ -236,7 +240,7 @@
                 const onVisible = () => {
                     if (document.visibilityState === 'visible') {
                         try {
-                            session.keep_alive();
+                            session.keepAlive();
                         }
                         catch (_) { /* ignore */ }
                     }

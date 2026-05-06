@@ -294,6 +294,9 @@ export class AI3STTS {
     });
 
     // 3. Bind events
+    const keepAliveMs = options.keepAliveIntervalMs ?? 20000;
+    let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+
     const standardEvents = [
       'avatar_start_talking',
       'avatar_stop_talking',
@@ -319,6 +322,10 @@ export class AI3STTS {
     session.on('session.stopped', (eventData?: any) => {
       const reason: StopReason = eventData?.stop_reason ?? 'UNKNOWN_REASON';
       console.log(`[AI3STTS] Session stopped. reason=${reason}`, eventData || '');
+      if (keepAliveTimer) {
+        clearInterval(keepAliveTimer);
+        keepAliveTimer = null;
+      }
       options.onEvent?.('session.stopped', { ...eventData, stop_reason: reason });
       options.onStopped?.(reason);
       if (!RECONNECTABLE_REASONS.has(reason)) {
@@ -363,8 +370,6 @@ export class AI3STTS {
     }
 
     // 7. Keep-alive to prevent IDLE_TIMEOUT
-    const keepAliveMs = options.keepAliveIntervalMs ?? 20000;
-    let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
     if (typeof session.keepAlive === 'function') {
       keepAliveTimer = setInterval(() => {
         try {
@@ -377,7 +382,7 @@ export class AI3STTS {
       // Re-trigger on tab visibility restored (browser throttles setInterval in background)
       const onVisible = () => {
         if (document.visibilityState === 'visible') {
-          try { session.keep_alive!(); } catch (_) { /* ignore */ }
+          try { session.keepAlive!(); } catch (_) { /* ignore */ }
         }
       };
       document.addEventListener('visibilitychange', onVisible);
