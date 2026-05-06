@@ -173,18 +173,18 @@
                     (_a = options.onEvent) === null || _a === void 0 ? void 0 : _a.call(options, event, eventData);
                 });
             }
-            // session_stopped: extract stop_reason and decide whether to reconnect
+            // session.stopped: extract stop_reason and decide whether to reconnect
             const RECONNECTABLE_REASONS = new Set([
                 'IDLE_TIMEOUT',
                 'SERVER_ERROR',
                 'ZOMBIE_SESSION_REAP',
                 'UNKNOWN_REASON',
             ]);
-            session.on('session_stopped', (eventData) => {
+            session.on('session.stopped', (eventData) => {
                 var _a, _b, _c;
                 const reason = (_a = eventData === null || eventData === void 0 ? void 0 : eventData.stop_reason) !== null && _a !== void 0 ? _a : 'UNKNOWN_REASON';
                 console.log(`[AI3STTS] Session stopped. reason=${reason}`, eventData || '');
-                (_b = options.onEvent) === null || _b === void 0 ? void 0 : _b.call(options, 'session_stopped', Object.assign(Object.assign({}, eventData), { stop_reason: reason }));
+                (_b = options.onEvent) === null || _b === void 0 ? void 0 : _b.call(options, 'session.stopped', Object.assign(Object.assign({}, eventData), { stop_reason: reason }));
                 (_c = options.onStopped) === null || _c === void 0 ? void 0 : _c.call(options, reason);
                 if (!RECONNECTABLE_REASONS.has(reason)) {
                     console.warn(`[AI3STTS] Non-reconnectable stop reason: ${reason}. Not auto-reconnecting.`);
@@ -223,13 +223,13 @@
             // 7. Keep-alive to prevent IDLE_TIMEOUT
             const keepAliveMs = (_c = options.keepAliveIntervalMs) !== null && _c !== void 0 ? _c : 20000;
             let keepAliveTimer = null;
-            if (typeof session.keep_alive === 'function') {
+            if (typeof session.keepAlive === 'function') {
                 keepAliveTimer = setInterval(() => {
                     try {
-                        session.keep_alive();
+                        session.keepAlive();
                     }
                     catch (e) {
-                        console.warn('[AI3STTS] keep_alive failed', e);
+                        console.warn('[AI3STTS] keepAlive failed', e);
                     }
                 }, keepAliveMs);
                 // Re-trigger on tab visibility restored (browser throttles setInterval in background)
@@ -269,8 +269,8 @@
                     },
                 };
             }
-            // 8. Return handle (no keep_alive support in this SDK version)
-            console.warn('[AI3STTS] session.keep_alive not available in this SDK version — IDLE_TIMEOUT risk');
+            // 8. Return handle (no keepAlive support in this SDK version)
+            console.warn('[AI3STTS] session.keepAlive not available in this SDK version — IDLE_TIMEOUT risk');
             return {
                 sessionId,
                 session,

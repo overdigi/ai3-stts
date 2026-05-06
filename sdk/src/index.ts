@@ -21,7 +21,7 @@ interface LiveAvatarSessionInstance {
   message(text: string): void;
   repeat(text: string): void;
   interrupt(): void;
-  keep_alive?(): void;
+  keepAlive?(): void;
   maxSessionDuration?: number;
 }
 
@@ -309,17 +309,17 @@ export class AI3STTS {
       });
     }
 
-    // session_stopped: extract stop_reason and decide whether to reconnect
+    // session.stopped: extract stop_reason and decide whether to reconnect
     const RECONNECTABLE_REASONS = new Set<StopReason>([
       'IDLE_TIMEOUT',
       'SERVER_ERROR',
       'ZOMBIE_SESSION_REAP',
       'UNKNOWN_REASON',
     ]);
-    session.on('session_stopped', (eventData?: any) => {
+    session.on('session.stopped', (eventData?: any) => {
       const reason: StopReason = eventData?.stop_reason ?? 'UNKNOWN_REASON';
       console.log(`[AI3STTS] Session stopped. reason=${reason}`, eventData || '');
-      options.onEvent?.('session_stopped', { ...eventData, stop_reason: reason });
+      options.onEvent?.('session.stopped', { ...eventData, stop_reason: reason });
       options.onStopped?.(reason);
       if (!RECONNECTABLE_REASONS.has(reason)) {
         console.warn(`[AI3STTS] Non-reconnectable stop reason: ${reason}. Not auto-reconnecting.`);
@@ -365,12 +365,12 @@ export class AI3STTS {
     // 7. Keep-alive to prevent IDLE_TIMEOUT
     const keepAliveMs = options.keepAliveIntervalMs ?? 20000;
     let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
-    if (typeof session.keep_alive === 'function') {
+    if (typeof session.keepAlive === 'function') {
       keepAliveTimer = setInterval(() => {
         try {
-          session.keep_alive!();
+          session.keepAlive!();
         } catch (e) {
-          console.warn('[AI3STTS] keep_alive failed', e);
+          console.warn('[AI3STTS] keepAlive failed', e);
         }
       }, keepAliveMs);
 
@@ -410,8 +410,8 @@ export class AI3STTS {
       };
     }
 
-    // 8. Return handle (no keep_alive support in this SDK version)
-    console.warn('[AI3STTS] session.keep_alive not available in this SDK version — IDLE_TIMEOUT risk');
+    // 8. Return handle (no keepAlive support in this SDK version)
+    console.warn('[AI3STTS] session.keepAlive not available in this SDK version — IDLE_TIMEOUT risk');
     return {
       sessionId,
       session,
