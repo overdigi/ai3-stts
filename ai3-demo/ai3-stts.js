@@ -131,10 +131,17 @@
         async createLiveAvatarSession(options) {
             var _a, _b, _c;
             // 1. Get session token from server
-            const response = await fetch(`${this.config.apiUrl}/liveavatar/token`, {
-                method: 'POST',
-                headers: Object.assign({ 'Content-Type': 'application/json' }, (this.config.apiKey && { 'x-api-key': this.config.apiKey })),
-                body: JSON.stringify({
+            const tokenEndpoint = options.useLiteMode
+                ? `${this.config.apiUrl}/liveavatar/token/lite`
+                : `${this.config.apiUrl}/liveavatar/token`;
+            const tokenBody = options.useLiteMode
+                ? {
+                    avatarId: options.avatarId,
+                    quality: options.quality,
+                    isSandbox: options.isSandbox,
+                    maxSessionDuration: options.maxSessionDuration,
+                }
+                : {
                     avatarId: options.avatarId,
                     voiceId: options.voiceId,
                     quality: options.quality,
@@ -142,7 +149,11 @@
                     language: options.language,
                     maxSessionDuration: options.maxSessionDuration,
                     voiceSettings: options.voiceSettings,
-                }),
+                };
+            const response = await fetch(tokenEndpoint, {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, (this.config.apiKey && { 'x-api-key': this.config.apiKey })),
+                body: JSON.stringify(tokenBody),
             });
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
