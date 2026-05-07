@@ -421,6 +421,12 @@ export class AI3STTS {
     }
 
     // 9. LITE mode speak via ElevenLabs TTS → avatar.speak_audio
+    // Server returns base64 PCM chunks; HeyGen sendCommandEvent expects binary string.
+    const base64ToBinaryString = (b64: string): string => {
+      const binary = atob(b64);
+      return binary;
+    };
+
     let liteSocket: ReturnType<typeof io> | null = null;
     const speakViaLite = (text: string): void => {
       if (!session.sendCommandEvent) {
@@ -446,10 +452,11 @@ export class AI3STTS {
       });
       liteSocket.once('speak-end', () => {
         liteSocket!.off('speak-chunk');
-        const combined = chunks.join('');
+        // Decode base64 chunks → binary string, then concatenate
+        const binaryPcm = chunks.map(base64ToBinaryString).join('');
         try {
-          session.sendCommandEvent!({ event_type: 'avatar.speak_audio', audio: combined });
-          console.log(`[AI3STTS] LITE speak sent: ${chunks.length} chunks, ${combined.length} chars`);
+          session.sendCommandEvent!({ event_type: 'avatar.speak_audio', audio: binaryPcm });
+          console.log(`[AI3STTS] LITE speak sent: ${chunks.length} chunks, ${binaryPcm.length} bytes`);
         } catch (e) {
           console.error('[AI3STTS] LITE sendCommandEvent failed:', e);
         }
