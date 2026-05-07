@@ -318,7 +318,7 @@
                 </div>
                 <div class="checkbox-group">
                     <input type="checkbox" id="lite-mode">
-                    <label for="lite-mode" style="font-size: 13px;">LITE Mode（ElevenLabs V3 TTS，改善中文語境，如「本行」念法）</label>
+                    <label for="lite-mode" style="font-size: 13px;">LITE Mode（ElevenLabs Turbo V2.5 TTS，改善中文語境，如「本行」念法）</label>
                 </div>
 
                 <button class="btn btn-success" onclick="loadConfig()" style="width: 100%; margin-bottom: 15px;">從 Server 載入設定</button>
@@ -595,7 +595,8 @@
         function speakText() {
             const text = document.getElementById('speak-text').value.trim();
             if (!text || !avatarSession) return;
-            avatarSession.speak(text);
+            const voiceId = document.getElementById('voice-id').value || undefined;
+            avatarSession.speak(text, voiceId);
             log('發送文字: ' + text);
         }
 
@@ -605,7 +606,8 @@
                 return;
             }
             document.getElementById('speak-text').value = text;
-            avatarSession.speak(text);
+            const voiceId = document.getElementById('voice-id').value || undefined;
+            avatarSession.speak(text, voiceId);
             log('快速發送: ' + text);
         }
 

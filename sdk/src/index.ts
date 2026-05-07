@@ -83,7 +83,7 @@ export interface LiveAvatarSessionOptions {
 export interface LiveAvatarSessionHandle {
   sessionId: string;
   session: LiveAvatarSessionInstance;
-  speak(text: string): void;
+  speak(text: string, voiceId?: string): void;
   interrupt(): void;
   stop(): Promise<void>;
 }
@@ -428,7 +428,7 @@ export class AI3STTS {
     };
 
     let liteSocket: ReturnType<typeof io> | null = null;
-    const speakViaLite = (text: string): void => {
+    const speakViaLite = (text: string, voiceId?: string): void => {
       if (!session.sendCommandEvent) {
         console.error('[AI3STTS] LITE mode: sendCommandEvent not available');
         return;
@@ -467,7 +467,7 @@ export class AI3STTS {
       liteSocket.on('speak-error', onError);
       liteSocket.emit('speak', {
         text,
-        voiceId: options.voiceId,
+        voiceId: voiceId ?? options.voiceId,
         apiKey: this.config.apiKey,
       });
     };
@@ -476,9 +476,9 @@ export class AI3STTS {
     return {
       sessionId,
       session,
-      speak(text: string) {
+      speak(text: string, voiceId?: string) {
         if (options.useLiteMode) {
-          speakViaLite(text);
+          speakViaLite(text, voiceId);
         } else {
           session.repeat(text);
         }
