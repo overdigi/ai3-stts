@@ -256,6 +256,14 @@
                     </div>
                     <div class="form-group">
                         <label>Voice ID</label>
+                        <select id="voice-preset" onchange="
+                            var v=this.value;
+                            if(v) document.getElementById('voice-id').value=v;
+                        " style="margin-bottom:4px;font-size:12px;width:100%">
+                            <option value="">— 選擇預設聲音 —</option>
+                            <option value="9lHjugDhwqoxA5MhX0az">聲音 A (9lHjugD...)</option>
+                            <option value="r6qgCCGI7RWKXCagm158">聲音 B (r6qgCCG...)</option>
+                        </select>
                         <input type="text" id="voice-id" placeholder="從 server config 載入">
                     </div>
                 </div>
