@@ -21,6 +21,8 @@ interface LiveAvatarSessionInstance {
   message(text: string): void;
   repeat(text: string): void;
   interrupt(): void;
+  keepAlive?(): void;
+  maxSessionDuration?: number;
 }
 
 // --- Config & Interfaces ---
@@ -47,6 +49,21 @@ export interface VoiceSettings {
   style?: number;
 }
 
+export type StopReason =
+  | 'IDLE_TIMEOUT'
+  | 'NO_CREDITS'
+  | 'MAX_DURATION_REACHED'
+  | 'ZOMBIE_SESSION_REAP'
+  | 'SERVER_ERROR'
+  | 'AVATAR_DELETED'
+  | 'AGENT_HANG_UP'
+  | 'USER_DISCONNECTED'
+  | 'USER_CLOSED'
+  | 'CLIENT_INITIATED'
+  | 'SESSION_START_FAILED'
+  | 'UNKNOWN_REASON'
+  | string;
+
 export interface LiveAvatarSessionOptions {
   avatarId: string;
   voiceId?: string;
@@ -57,6 +74,8 @@ export interface LiveAvatarSessionOptions {
   voiceSettings?: VoiceSettings;
   mediaElement?: HTMLMediaElement;
   onEvent?: (event: string, data?: any) => void;
+  onStopped?: (reason: StopReason) => void;
+  keepAliveIntervalMs?: number;
 }
 
 export interface LiveAvatarSessionHandle {
@@ -266,7 +285,7 @@ export class AI3STTS {
     // 2. Create LiveAvatarSession
     if (!window.LiveAvatarSDK?.LiveAvatarSession) {
       throw new Error(
-        'LiveAvatar SDK not loaded. Add <script src="https://cdn.jsdelivr.net/npm/@heygen/liveavatar-web-sdk/dist/index.umd.js"></script> to your page.',
+        'LiveAvatar SDK not loaded. Add <script src="https://cdn.jsdelivr.net/npm/@heygen/liveavatar-web-sdk@0.0.17/dist/index.umd.js"></script> to your page.',
       );
     }
 
@@ -274,23 +293,48 @@ export class AI3STTS {
       voiceChat: false,
     });
 
-    // 3. Bind events
-    const events = [
+    // 3. Declare keep-alive timer early so session.stopped handler can access it
+    const keepAliveMs = options.keepAliveIntervalMs ?? 20000;
+    let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+
+    // 4. Bind standard events
+    const standardEvents = [
       'avatar_start_talking',
       'avatar_stop_talking',
       'user_start_talking',
       'user_stop_talking',
-      'session_stopped',
+      'session_disconnected',
     ];
 
-    for (const event of events) {
+    for (const event of standardEvents) {
       session.on(event, (eventData?: any) => {
         console.log(`[AI3STTS] Event: ${event}`, eventData || '');
         options.onEvent?.(event, eventData);
       });
     }
 
-    // 4. Start session with retry (API may need time to release previous session)
+    // session.stopped: extract stop_reason, clear keep-alive, fire callbacks
+    const RECONNECTABLE_REASONS = new Set<StopReason>([
+      'IDLE_TIMEOUT',
+      'SERVER_ERROR',
+      'ZOMBIE_SESSION_REAP',
+      'UNKNOWN_REASON',
+    ]);
+    session.on('session.stopped', (eventData?: any) => {
+      const reason: StopReason = eventData?.stop_reason ?? 'UNKNOWN_REASON';
+      console.log(`[AI3STTS] Session stopped. reason=${reason}`, eventData || '');
+      if (keepAliveTimer) {
+        clearInterval(keepAliveTimer);
+        keepAliveTimer = null;
+      }
+      options.onEvent?.('session.stopped', { ...eventData, stop_reason: reason });
+      options.onStopped?.(reason);
+      if (!RECONNECTABLE_REASONS.has(reason)) {
+        console.warn(`[AI3STTS] Non-reconnectable stop reason: ${reason}. Not auto-reconnecting.`);
+      }
+    });
+
+    // 5. Start session — wait for stream_ready event before proceeding
     const startPromise = new Promise<void>((resolve, reject) => {
       const onStreamReady = () => {
         session.off('session.stream_ready', onStreamReady);
@@ -323,13 +367,45 @@ export class AI3STTS {
     await startPromise;
     console.log(`[AI3STTS] LiveAvatar session started: ${sessionId}`);
 
-    // 5. Attach media element after stream is ready
+    // 6. Verify maxSessionDuration matches requested value
+    if (options.maxSessionDuration && session.maxSessionDuration !== undefined) {
+      if (session.maxSessionDuration !== options.maxSessionDuration) {
+        console.warn(
+          `[AI3STTS] maxSessionDuration mismatch! requested=${options.maxSessionDuration}s, server=${session.maxSessionDuration}s`,
+        );
+      }
+    }
+    console.log(`[AI3STTS] maxSessionDuration=${session.maxSessionDuration ?? 'unknown'}s`);
+
+    // 7. Attach media element after stream is ready
     if (options.mediaElement) {
       session.attach(options.mediaElement);
       console.log('[AI3STTS] Media element attached');
     }
 
-    // 6. Return handle
+    // 8. Keep-alive to prevent IDLE_TIMEOUT
+    let onVisible: (() => void) | null = null;
+    if (typeof session.keepAlive === 'function') {
+      keepAliveTimer = setInterval(() => {
+        try {
+          session.keepAlive!();
+        } catch (e) {
+          console.warn('[AI3STTS] keepAlive failed', e);
+        }
+      }, keepAliveMs);
+
+      onVisible = () => {
+        if (document.visibilityState === 'visible') {
+          try { session.keepAlive!(); } catch (_) { /* ignore */ }
+        }
+      };
+      document.addEventListener('visibilitychange', onVisible);
+      console.log(`[AI3STTS] keep-alive started every ${keepAliveMs}ms`);
+    } else {
+      console.warn('[AI3STTS] session.keepAlive not available in this SDK version — IDLE_TIMEOUT risk');
+    }
+
+    // 9. Return handle
     return {
       sessionId,
       session,
@@ -340,6 +416,13 @@ export class AI3STTS {
         session.interrupt();
       },
       async stop() {
+        if (keepAliveTimer) {
+          clearInterval(keepAliveTimer);
+          keepAliveTimer = null;
+        }
+        if (onVisible) {
+          document.removeEventListener('visibilitychange', onVisible);
+        }
         try {
           await session.stop();
         } catch (e) {

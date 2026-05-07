@@ -129,7 +129,7 @@
         }
         // --- LiveAvatar Methods ---
         async createLiveAvatarSession(options) {
-            var _a;
+            var _a, _b, _c;
             // 1. Get session token from server
             const response = await fetch(`${this.config.apiUrl}/liveavatar/token`, {
                 method: 'POST',
@@ -153,27 +153,51 @@
             console.log(`[AI3STTS] Session token received: ${sessionId}`);
             // 2. Create LiveAvatarSession
             if (!((_a = window.LiveAvatarSDK) === null || _a === void 0 ? void 0 : _a.LiveAvatarSession)) {
-                throw new Error('LiveAvatar SDK not loaded. Add <script src="https://cdn.jsdelivr.net/npm/@heygen/liveavatar-web-sdk/dist/index.umd.js"></script> to your page.');
+                throw new Error('LiveAvatar SDK not loaded. Add <script src="https://cdn.jsdelivr.net/npm/@heygen/liveavatar-web-sdk@0.0.17/dist/index.umd.js"></script> to your page.');
             }
             const session = new window.LiveAvatarSDK.LiveAvatarSession(sessionToken, {
                 voiceChat: false,
             });
-            // 3. Bind events
-            const events = [
+            // 3. Declare keep-alive timer early so session.stopped handler can access it
+            const keepAliveMs = (_b = options.keepAliveIntervalMs) !== null && _b !== void 0 ? _b : 20000;
+            let keepAliveTimer = null;
+            // 4. Bind standard events
+            const standardEvents = [
                 'avatar_start_talking',
                 'avatar_stop_talking',
                 'user_start_talking',
                 'user_stop_talking',
-                'session_stopped',
+                'session_disconnected',
             ];
-            for (const event of events) {
+            for (const event of standardEvents) {
                 session.on(event, (eventData) => {
                     var _a;
                     console.log(`[AI3STTS] Event: ${event}`, eventData || '');
                     (_a = options.onEvent) === null || _a === void 0 ? void 0 : _a.call(options, event, eventData);
                 });
             }
-            // 4. Start session with retry (API may need time to release previous session)
+            // session.stopped: extract stop_reason, clear keep-alive, fire callbacks
+            const RECONNECTABLE_REASONS = new Set([
+                'IDLE_TIMEOUT',
+                'SERVER_ERROR',
+                'ZOMBIE_SESSION_REAP',
+                'UNKNOWN_REASON',
+            ]);
+            session.on('session.stopped', (eventData) => {
+                var _a, _b, _c;
+                const reason = (_a = eventData === null || eventData === void 0 ? void 0 : eventData.stop_reason) !== null && _a !== void 0 ? _a : 'UNKNOWN_REASON';
+                console.log(`[AI3STTS] Session stopped. reason=${reason}`, eventData || '');
+                if (keepAliveTimer) {
+                    clearInterval(keepAliveTimer);
+                    keepAliveTimer = null;
+                }
+                (_b = options.onEvent) === null || _b === void 0 ? void 0 : _b.call(options, 'session.stopped', Object.assign(Object.assign({}, eventData), { stop_reason: reason }));
+                (_c = options.onStopped) === null || _c === void 0 ? void 0 : _c.call(options, reason);
+                if (!RECONNECTABLE_REASONS.has(reason)) {
+                    console.warn(`[AI3STTS] Non-reconnectable stop reason: ${reason}. Not auto-reconnecting.`);
+                }
+            });
+            // 5. Start session — wait for stream_ready event before proceeding
             const startPromise = new Promise((resolve, reject) => {
                 const onStreamReady = () => {
                     session.off('session.stream_ready', onStreamReady);
@@ -202,12 +226,44 @@
             });
             await startPromise;
             console.log(`[AI3STTS] LiveAvatar session started: ${sessionId}`);
-            // 5. Attach media element after stream is ready
+            // 6. Verify maxSessionDuration matches requested value
+            if (options.maxSessionDuration && session.maxSessionDuration !== undefined) {
+                if (session.maxSessionDuration !== options.maxSessionDuration) {
+                    console.warn(`[AI3STTS] maxSessionDuration mismatch! requested=${options.maxSessionDuration}s, server=${session.maxSessionDuration}s`);
+                }
+            }
+            console.log(`[AI3STTS] maxSessionDuration=${(_c = session.maxSessionDuration) !== null && _c !== void 0 ? _c : 'unknown'}s`);
+            // 7. Attach media element after stream is ready
             if (options.mediaElement) {
                 session.attach(options.mediaElement);
                 console.log('[AI3STTS] Media element attached');
             }
-            // 6. Return handle
+            // 8. Keep-alive to prevent IDLE_TIMEOUT
+            let onVisible = null;
+            if (typeof session.keepAlive === 'function') {
+                keepAliveTimer = setInterval(() => {
+                    try {
+                        session.keepAlive();
+                    }
+                    catch (e) {
+                        console.warn('[AI3STTS] keepAlive failed', e);
+                    }
+                }, keepAliveMs);
+                onVisible = () => {
+                    if (document.visibilityState === 'visible') {
+                        try {
+                            session.keepAlive();
+                        }
+                        catch (_) { /* ignore */ }
+                    }
+                };
+                document.addEventListener('visibilitychange', onVisible);
+                console.log(`[AI3STTS] keep-alive started every ${keepAliveMs}ms`);
+            }
+            else {
+                console.warn('[AI3STTS] session.keepAlive not available in this SDK version — IDLE_TIMEOUT risk');
+            }
+            // 9. Return handle
             return {
                 sessionId,
                 session,
@@ -218,6 +274,13 @@
                     session.interrupt();
                 },
                 async stop() {
+                    if (keepAliveTimer) {
+                        clearInterval(keepAliveTimer);
+                        keepAliveTimer = null;
+                    }
+                    if (onVisible) {
+                        document.removeEventListener('visibilitychange', onVisible);
+                    }
                     try {
                         await session.stop();
                     }
