@@ -439,20 +439,14 @@ export class AI3STTS {
         });
       }
       const chunks: string[] = [];
-      liteSocket.emit('speak', {
-        text,
-        apiKey: this.config.apiKey,
-      });
-      liteSocket.once('speak-error', (data: { error: string }) => {
-        console.error('[AI3STTS] LITE speak error:', data.error);
-        chunks.length = 0;
-      });
-      liteSocket.on('speak-chunk', (data: { data: string; index: number }) => {
+
+      const onChunk = (data: { data: string; index: number }) => {
         chunks[data.index] = data.data;
-      });
-      liteSocket.once('speak-end', () => {
-        liteSocket!.off('speak-chunk');
-        // Decode base64 chunks → binary string, then concatenate
+      };
+      const onEnd = () => {
+        liteSocket!.off('speak-chunk', onChunk);
+        liteSocket!.off('speak-end', onEnd);
+        liteSocket!.off('speak-error', onError);
         const binaryPcm = chunks.map(base64ToBinaryString).join('');
         try {
           session.sendCommandEvent!({ event_type: 'avatar.speak_audio', audio: binaryPcm });
@@ -460,7 +454,21 @@ export class AI3STTS {
         } catch (e) {
           console.error('[AI3STTS] LITE sendCommandEvent failed:', e);
         }
-        chunks.length = 0;
+      };
+      const onError = (data: { error: string }) => {
+        liteSocket!.off('speak-chunk', onChunk);
+        liteSocket!.off('speak-end', onEnd);
+        liteSocket!.off('speak-error', onError);
+        console.error('[AI3STTS] LITE speak error:', data.error);
+      };
+
+      liteSocket.on('speak-chunk', onChunk);
+      liteSocket.on('speak-end', onEnd);
+      liteSocket.on('speak-error', onError);
+      liteSocket.emit('speak', {
+        text,
+        voiceId: options.voiceId,
+        apiKey: this.config.apiKey,
       });
     };
 

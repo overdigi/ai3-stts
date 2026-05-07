@@ -21,7 +21,7 @@ export class ElevenLabsService {
   }
 
   async synthesizePcm(options: SynthesizeOptions): Promise<Buffer> {
-    const { text, voiceId, modelId = 'eleven_v3' } = options;
+    const { text, voiceId, modelId = 'eleven_turbo_v2_5' } = options;
     this.logger.log(`ElevenLabs TTS: voiceId=${voiceId}, model=${modelId}`);
 
     const audioStream = await this.client.textToSpeech.convertAsStream(voiceId, {
