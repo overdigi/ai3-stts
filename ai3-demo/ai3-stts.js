@@ -274,12 +274,54 @@
             else {
                 console.warn('[AI3STTS] session.keepAlive not available in this SDK version — IDLE_TIMEOUT risk');
             }
-            // 9. Return handle
+            // 9. LITE mode speak via ElevenLabs TTS → avatar.speak_audio
+            let liteSocket = null;
+            const speakViaLite = (text) => {
+                if (!session.sendCommandEvent) {
+                    console.error('[AI3STTS] LITE mode: sendCommandEvent not available');
+                    return;
+                }
+                if (!liteSocket || !liteSocket.connected) {
+                    liteSocket = socket_ioClient.io(`${this.config.apiUrl}/liveavatar-speak`, {
+                        transports: ['websocket'],
+                    });
+                }
+                const chunks = [];
+                liteSocket.emit('speak', {
+                    text,
+                    apiKey: this.config.apiKey,
+                });
+                liteSocket.once('speak-error', (data) => {
+                    console.error('[AI3STTS] LITE speak error:', data.error);
+                    chunks.length = 0;
+                });
+                liteSocket.on('speak-chunk', (data) => {
+                    chunks[data.index] = data.data;
+                });
+                liteSocket.once('speak-end', () => {
+                    liteSocket.off('speak-chunk');
+                    const combined = chunks.join('');
+                    try {
+                        session.sendCommandEvent({ event_type: 'avatar.speak_audio', audio: combined });
+                        console.log(`[AI3STTS] LITE speak sent: ${chunks.length} chunks, ${combined.length} chars`);
+                    }
+                    catch (e) {
+                        console.error('[AI3STTS] LITE sendCommandEvent failed:', e);
+                    }
+                    chunks.length = 0;
+                });
+            };
+            // 10. Return handle
             return {
                 sessionId,
                 session,
                 speak(text) {
-                    session.repeat(text);
+                    if (options.useLiteMode) {
+                        speakViaLite(text);
+                    }
+                    else {
+                        session.repeat(text);
+                    }
                 },
                 interrupt() {
                     session.interrupt();
@@ -291,6 +333,10 @@
                     }
                     if (onVisible) {
                         document.removeEventListener('visibilitychange', onVisible);
+                    }
+                    if (liteSocket) {
+                        liteSocket.disconnect();
+                        liteSocket = null;
                     }
                     try {
                         await session.stop();
