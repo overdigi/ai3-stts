@@ -281,7 +281,7 @@
                 return binary;
             };
             let liteSocket = null;
-            const speakViaLite = (text) => {
+            const speakViaLite = (text, voiceId) => {
                 if (!session.sendCommandEvent) {
                     console.error('[AI3STTS] LITE mode: sendCommandEvent not available');
                     return;
@@ -292,20 +292,13 @@
                     });
                 }
                 const chunks = [];
-                liteSocket.emit('speak', {
-                    text,
-                    apiKey: this.config.apiKey,
-                });
-                liteSocket.once('speak-error', (data) => {
-                    console.error('[AI3STTS] LITE speak error:', data.error);
-                    chunks.length = 0;
-                });
-                liteSocket.on('speak-chunk', (data) => {
+                const onChunk = (data) => {
                     chunks[data.index] = data.data;
-                });
-                liteSocket.once('speak-end', () => {
-                    liteSocket.off('speak-chunk');
-                    // Decode base64 chunks → binary string, then concatenate
+                };
+                const onEnd = () => {
+                    liteSocket.off('speak-chunk', onChunk);
+                    liteSocket.off('speak-end', onEnd);
+                    liteSocket.off('speak-error', onError);
                     const binaryPcm = chunks.map(base64ToBinaryString).join('');
                     try {
                         session.sendCommandEvent({ event_type: 'avatar.speak_audio', audio: binaryPcm });
@@ -314,16 +307,31 @@
                     catch (e) {
                         console.error('[AI3STTS] LITE sendCommandEvent failed:', e);
                     }
-                    chunks.length = 0;
+                };
+                const onError = (data) => {
+                    liteSocket.off('speak-chunk', onChunk);
+                    liteSocket.off('speak-end', onEnd);
+                    liteSocket.off('speak-error', onError);
+                    console.error('[AI3STTS] LITE speak error:', data.error);
+                };
+                liteSocket.on('speak-chunk', onChunk);
+                liteSocket.on('speak-end', onEnd);
+                liteSocket.on('speak-error', onError);
+                const resolvedVoiceId = voiceId !== null && voiceId !== void 0 ? voiceId : options.voiceId;
+                console.log(`[AI3STTS] LITE speak: voiceId=${resolvedVoiceId}`);
+                liteSocket.emit('speak', {
+                    text,
+                    voiceId: resolvedVoiceId,
+                    apiKey: this.config.apiKey,
                 });
             };
             // 10. Return handle
             return {
                 sessionId,
                 session,
-                speak(text) {
+                speak(text, voiceId) {
                     if (options.useLiteMode) {
-                        speakViaLite(text);
+                        speakViaLite(text, voiceId);
                     }
                     else {
                         session.repeat(text);

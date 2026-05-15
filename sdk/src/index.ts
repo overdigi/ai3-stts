@@ -465,9 +465,11 @@ export class AI3STTS {
       liteSocket.on('speak-chunk', onChunk);
       liteSocket.on('speak-end', onEnd);
       liteSocket.on('speak-error', onError);
+      const resolvedVoiceId = voiceId ?? options.voiceId;
+      console.log(`[AI3STTS] LITE speak: voiceId=${resolvedVoiceId}`);
       liteSocket.emit('speak', {
         text,
-        voiceId: voiceId ?? options.voiceId,
+        voiceId: resolvedVoiceId,
         apiKey: this.config.apiKey,
       });
     };
