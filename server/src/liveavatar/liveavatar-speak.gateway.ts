@@ -9,9 +9,13 @@ import {
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
-import { ElevenLabsService } from '../elevenlabs/elevenlabs.service';
+import { AzureTtsService } from './azure-tts.service';
 
 const CHUNK_SIZE = 4096; // bytes per chunk sent to LiveAvatar
+
+// Defaults — caller may override via the `speak` event payload.
+const DEFAULT_VOICE_NAME = 'zh-TW-HsiaoChenNeural';
+const DEFAULT_LANGUAGE = 'zh-TW';
 
 @WebSocketGateway({
   namespace: 'liveavatar-speak',
@@ -31,7 +35,7 @@ export class LiveavatarSpeakGateway implements OnGatewayConnection, OnGatewayDis
 
   private readonly logger = new Logger(LiveavatarSpeakGateway.name);
 
-  constructor(private readonly elevenLabsService: ElevenLabsService) {}
+  constructor(private readonly azureTtsService: AzureTtsService) {}
 
   handleConnection(client: Socket) {
     this.logger.log(`LiveAvatar Speak client connected: ${client.id}`);
@@ -42,11 +46,20 @@ export class LiveavatarSpeakGateway implements OnGatewayConnection, OnGatewayDis
   }
 
   /**
-   * Client sends: { text, voiceId?, modelId?, apiKey? }
+   * Client sends: { text, voiceName?, language?, voiceId?, apiKey? }
+   *   - voiceName: Azure voice name (e.g. "zh-TW-HsiaoChenNeural"). Optional.
+   *   - language:  Azure locale (e.g. "zh-TW"). Optional.
+   *   - voiceId:   Legacy field kept for backward compatibility with the
+   *                existing SDK build. If `voiceName` is omitted but
+   *                `voiceId` is supplied, it is treated as the voice name.
+   *
    * Server responds with:
    *   speak-chunk: { data: base64, index: number }  (multiple)
-   *   speak-end: {}
+   *   speak-end:   { totalChunks: number }
    *   speak-error: { error: string }
+   *
+   * Audio format: RAW 24kHz, 16-bit, mono PCM (little-endian, no header) —
+   * the same shape ElevenLabs `pcm_24000` produced.
    */
   @SubscribeMessage('speak')
   async handleSpeak(
@@ -54,8 +67,9 @@ export class LiveavatarSpeakGateway implements OnGatewayConnection, OnGatewayDis
     @MessageBody()
     data: {
       text: string;
-      voiceId?: string;
-      modelId?: string;
+      voiceName?: string;
+      language?: string;
+      voiceId?: string; // legacy alias for voiceName (SDK backward compat)
       apiKey?: string;
     },
   ) {
@@ -64,22 +78,24 @@ export class LiveavatarSpeakGateway implements OnGatewayConnection, OnGatewayDis
       return;
     }
 
-    const voiceId = data.voiceId || process.env.ELEVENLABS_VOICE_ID;
-    if (!voiceId) {
-      client.emit('speak-error', { error: '缺少 voiceId' });
-      return;
-    }
-
     if (!data.text?.trim()) {
       client.emit('speak-error', { error: '缺少 text' });
       return;
     }
 
+    const voiceName =
+      data.voiceName ||
+      data.voiceId ||
+      process.env.AZURE_TTS_VOICE_NAME ||
+      DEFAULT_VOICE_NAME;
+    const language =
+      data.language || process.env.AZURE_TTS_LANGUAGE || DEFAULT_LANGUAGE;
+
     try {
-      const pcm = await this.elevenLabsService.synthesizePcm({
+      const pcm = await this.azureTtsService.synthesizePcm({
         text: data.text,
-        voiceId,
-        modelId: data.modelId,
+        voiceName,
+        language,
       });
 
       let index = 0;
@@ -93,7 +109,7 @@ export class LiveavatarSpeakGateway implements OnGatewayConnection, OnGatewayDis
 
       client.emit('speak-end', { totalChunks: index });
     } catch (error) {
-      this.logger.error('ElevenLabs TTS 錯誤:', error);
+      this.logger.error('Azure TTS 錯誤:', error);
       client.emit('speak-error', {
         error: error instanceof Error ? error.message : 'TTS 失敗',
       });

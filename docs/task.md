@@ -110,8 +110,55 @@
 - [ ] Azure Speech 服務區域確認
 - [ ] API Key 格式規範
 
+## Azure TTS 需求確認（2026-05-25 業主回覆）
+
+### 說明內容
+1. **過去版本**：HeyGen 時期使用 Azure STT（語音辨識），TTS 是 HeyGen 平台自帶聲音，未串接 Azure TTS。
+2. **LiveAvatar Lite Mode + Azure TTS 可行性**：
+   - 目前採用 Lite Mode，TTS 合成由我方負責
+   - 技術上可將 ElevenLabs 替換為 Azure Speech SDK
+   - LiveAvatar 端不需要調整
+3. **多語系支援**：
+   - 每次呼叫時動態帶入 voice name 與 language 參數
+   - 由業主根據對話語言自行決定使用哪個聲音
+   - 彈性支援多語系需求
+
+### 工時評估
+- 約 2～3 個工作天
+- 預計 2026-05-28（週三）提供測試分支
+
 ## 備註
 - 優先完成核心功能 (STT + HeyGen 播放)
 - 確保 console 錯誤訊息清晰
 - 專注於 Chrome 瀏覽器支援
 - 對話記錄由 AI3 處理，不在本系統範圍
+
+## Azure TTS 實作完成記錄（2026-05-25, branch: feature/azure-tts-lite-mode）
+
+### 變更摘要
+- 新增 `server/src/liveavatar/azure-tts.service.ts`：使用 `microsoft-cognitiveservices-speech-sdk`
+  的 `SpeechSynthesizer.speakTextAsync` 產生 RAW 24kHz / 16-bit / mono PCM
+  （`SpeechSynthesisOutputFormat.Raw24Khz16BitMonoPcm`），格式與舊版 ElevenLabs `pcm_24000` 一致，
+  LiveAvatar `repeatAudio` / `sendCommandEvent({ event_type: 'avatar.speak_audio' })` 無需調整。
+- 更新 `liveavatar-speak.gateway.ts`：將 `ElevenLabsService` 換成 `AzureTtsService`，
+  Socket.IO `speak` event 新增可選欄位 `voiceName`、`language`；為了相容現有 SDK build，
+  舊欄位 `voiceId` 仍接受，會被視為 `voiceName`。`speak-chunk` / `speak-end` / `speak-error`
+  事件協定保持不變（4096 bytes/chunk、base64）。
+- 更新 `liveavatar.module.ts`：移除 `ElevenLabsModule` 依賴，註冊 `AzureTtsService`。
+- 更新 `server/.env.example`：
+  - `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION` 註解補上 TTS 用途說明；
+  - 新增 `AZURE_TTS_VOICE_NAME` / `AZURE_TTS_LANGUAGE` 預設值（可被 socket payload 覆寫）；
+  - `ELEVENLABS_*` 標記為 DEPRECATED 並註解掉。
+- `server/src/elevenlabs/` 目錄與 `elevenlabs` npm 套件暫時保留，方便回滾，但已不再被 import。
+
+### 輸出格式
+- Sample rate: 24,000 Hz
+- Bit depth: 16-bit signed PCM（little-endian）
+- Channels: mono (1)
+- Header: 無（raw bytes）
+- Transport: 切成 4096 bytes/chunk、base64 編碼，與舊版 ElevenLabs 流程相同
+
+### 預設聲音 / 語系
+- voiceName: `zh-TW-HsiaoChenNeural`
+- language:  `zh-TW`
+- 呼叫端可在 `speak` event 動態帶入 `voiceName` + `language` 覆寫
