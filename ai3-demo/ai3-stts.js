@@ -317,11 +317,11 @@
                 liteSocket.on('speak-chunk', onChunk);
                 liteSocket.on('speak-end', onEnd);
                 liteSocket.on('speak-error', onError);
-                const resolvedVoiceId = voiceId !== null && voiceId !== void 0 ? voiceId : options.voiceId;
-                console.log(`[AI3STTS] LITE speak: voiceId=${resolvedVoiceId}`);
+                const resolvedVoiceName = voiceId !== null && voiceId !== void 0 ? voiceId : options.azureVoiceName;
+                console.log(`[AI3STTS] LITE speak: voiceName=${resolvedVoiceName}`);
                 liteSocket.emit('speak', {
                     text,
-                    voiceId: resolvedVoiceId,
+                    voiceName: resolvedVoiceName,
                     apiKey: this.config.apiKey,
                 });
             };

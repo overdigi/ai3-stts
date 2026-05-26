@@ -78,12 +78,13 @@ export interface LiveAvatarSessionOptions {
   onStopped?: (reason: StopReason) => void;
   keepAliveIntervalMs?: number;
   useLiteMode?: boolean;
+  azureVoiceName?: string;
 }
 
 export interface LiveAvatarSessionHandle {
   sessionId: string;
   session: LiveAvatarSessionInstance;
-  speak(text: string, voiceId?: string): void;
+  speak(text: string, voiceName?: string): void;
   interrupt(): void;
   stop(): Promise<void>;
 }
@@ -465,11 +466,11 @@ export class AI3STTS {
       liteSocket.on('speak-chunk', onChunk);
       liteSocket.on('speak-end', onEnd);
       liteSocket.on('speak-error', onError);
-      const resolvedVoiceId = voiceId ?? options.voiceId;
-      console.log(`[AI3STTS] LITE speak: voiceId=${resolvedVoiceId}`);
+      const resolvedVoiceName = voiceId ?? options.azureVoiceName;
+      console.log(`[AI3STTS] LITE speak: voiceName=${resolvedVoiceName}`);
       liteSocket.emit('speak', {
         text,
-        voiceId: resolvedVoiceId,
+        voiceName: resolvedVoiceName,
         apiKey: this.config.apiKey,
       });
     };

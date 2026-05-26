@@ -49,9 +49,6 @@ export class LiveavatarSpeakGateway implements OnGatewayConnection, OnGatewayDis
    * Client sends: { text, voiceName?, language?, voiceId?, apiKey? }
    *   - voiceName: Azure voice name (e.g. "zh-TW-HsiaoChenNeural"). Optional.
    *   - language:  Azure locale (e.g. "zh-TW"). Optional.
-   *   - voiceId:   Legacy field kept for backward compatibility with the
-   *                existing SDK build. If `voiceName` is omitted but
-   *                `voiceId` is supplied, it is treated as the voice name.
    *
    * Server responds with:
    *   speak-chunk: { data: base64, index: number }  (multiple)
@@ -69,7 +66,7 @@ export class LiveavatarSpeakGateway implements OnGatewayConnection, OnGatewayDis
       text: string;
       voiceName?: string;
       language?: string;
-      voiceId?: string; // legacy alias for voiceName (SDK backward compat)
+      voiceId?: string; // HeyGen voice UUID — ignored for Azure TTS
       apiKey?: string;
     },
   ) {
@@ -85,7 +82,6 @@ export class LiveavatarSpeakGateway implements OnGatewayConnection, OnGatewayDis
 
     const voiceName =
       data.voiceName ||
-      data.voiceId ||
       process.env.AZURE_TTS_VOICE_NAME ||
       DEFAULT_VOICE_NAME;
     const language =
