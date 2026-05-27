@@ -13,9 +13,7 @@ import { AzureTtsService } from './azure-tts.service';
 
 const CHUNK_SIZE = 4096; // bytes per chunk sent to LiveAvatar
 
-// Defaults — caller may override via the `speak` event payload.
 const DEFAULT_VOICE_NAME = 'zh-TW-HsiaoChenNeural';
-const DEFAULT_LANGUAGE = 'zh-TW';
 
 @WebSocketGateway({
   namespace: 'liveavatar-speak',
@@ -46,17 +44,15 @@ export class LiveavatarSpeakGateway implements OnGatewayConnection, OnGatewayDis
   }
 
   /**
-   * Client sends: { text, voiceName?, language?, voiceId?, apiKey? }
+   * Client sends: { text, voiceName?, voiceId?, apiKey? }
    *   - voiceName: Azure voice name (e.g. "zh-TW-HsiaoChenNeural"). Optional.
-   *   - language:  Azure locale (e.g. "zh-TW"). Optional.
    *
    * Server responds with:
    *   speak-chunk: { data: base64, index: number }  (multiple)
    *   speak-end:   { totalChunks: number }
    *   speak-error: { error: string }
    *
-   * Audio format: RAW 24kHz, 16-bit, mono PCM (little-endian, no header) —
-   * the same shape ElevenLabs `pcm_24000` produced.
+   * Audio format: RAW 24kHz, 16-bit, mono PCM (little-endian, no header).
    */
   @SubscribeMessage('speak')
   async handleSpeak(
@@ -65,7 +61,6 @@ export class LiveavatarSpeakGateway implements OnGatewayConnection, OnGatewayDis
     data: {
       text: string;
       voiceName?: string;
-      language?: string;
       voiceId?: string; // HeyGen voice UUID — ignored for Azure TTS
       apiKey?: string;
     },
@@ -84,14 +79,11 @@ export class LiveavatarSpeakGateway implements OnGatewayConnection, OnGatewayDis
       data.voiceName ||
       process.env.AZURE_TTS_VOICE_NAME ||
       DEFAULT_VOICE_NAME;
-    const language =
-      data.language || process.env.AZURE_TTS_LANGUAGE || DEFAULT_LANGUAGE;
 
     try {
       const pcm = await this.azureTtsService.synthesizePcm({
         text: data.text,
         voiceName,
-        language,
       });
 
       let index = 0;

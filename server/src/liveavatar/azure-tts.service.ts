@@ -4,7 +4,6 @@ import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
 export interface AzureTtsOptions {
   text: string;
   voiceName: string;
-  language: string;
 }
 
 /**
@@ -40,17 +39,16 @@ export class AzureTtsService {
    * Returns the full audio buffer.
    */
   async synthesizePcm(options: AzureTtsOptions): Promise<Buffer> {
-    const { text, voiceName, language } = options;
+    const { text, voiceName } = options;
 
     this.logger.log(
-      `Azure TTS: voiceName=${voiceName}, language=${language}, textLen=${text.length}`,
+      `Azure TTS: voiceName=${voiceName}, textLen=${text.length}`,
     );
 
     const speechConfig = sdk.SpeechConfig.fromSubscription(
       this.speechKey,
       this.speechRegion,
     );
-    speechConfig.speechSynthesisLanguage = language;
     speechConfig.speechSynthesisVoiceName = voiceName;
     // RAW 24kHz 16-bit mono PCM — matches ElevenLabs `pcm_24000` exactly
     speechConfig.speechSynthesisOutputFormat =
