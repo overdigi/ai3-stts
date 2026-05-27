@@ -5,6 +5,7 @@ AI3-STTS 是一個整合 Azure Speech-to-Text (STT) 和 LiveAvatar 虛擬人物�
 ## 功能特色
 
 - **即時語音識別**：使用 Azure Speech Services 進行高精度中文語音識別
+- **Azure TTS 語音合成**：使用 Azure Speech SDK 合成語音，輸出 RAW 24kHz 16-bit mono PCM
 - **虛擬人物播放**：整合 LiveAvatar SDK 實現虛擬人物語音合成播放
 - **WebSocket 即時通訊**：低延遲的音訊資料傳輸
 - **純 JavaScript SDK**：無框架依賴，支援現代瀏覽器
@@ -23,7 +24,7 @@ AI3-STTS 是一個整合 Azure Speech-to-Text (STT) 和 LiveAvatar 虛擬人物�
 - 需要 HTTPS 或 localhost 環境使用麥克風
 
 ### 第三方服務
-- Azure Cognitive Services Speech API
+- Azure Cognitive Services Speech API（STT + TTS）
 - LiveAvatar API (HeyGen)
 
 ## 安裝與設置
@@ -64,12 +65,13 @@ AZURE_SPEECH_REGION=japaneast
 LIVEAVATAR_API_KEY=your-liveavatar-api-key
 LIVEAVATAR_API_URL=https://api.liveavatar.com
 
-# LiveAvatar 預設 Avatar 和 Voice
+# LiveAvatar 預設 Avatar
 # Avatar ID: https://app.heygen.com/avatars
-# Voice ID: https://app.heygen.com/voices
 # Sandbox 測試用 Avatar ID: dd73ea75-1218-4ef3-92ce-606d5f7fbc0a (Wayne)
 AVATAR_ID=your-avatar-id
-VOICE_ID=your-voice-id
+
+# Azure TTS 語音設定（選填，有預設值）
+AZURE_TTS_VOICE_NAME=zh-TW-HsiaoChenNeural
 
 # CORS 設定
 CORS_ORIGIN=http://localhost:3000,http://localhost:8000,http://localhost:8080
@@ -112,7 +114,8 @@ const handle = await client.createLiveAvatarSession({
   avatarId: 'your-avatar-id',
   mediaElement: document.getElementById('avatar-video'), // <video> 元素
   quality: 'high',
-  language: 'zh-TW',
+  useLiteMode: true,                    // 使用 Azure TTS（固定開啟）
+  azureVoiceName: 'zh-TW-HsiaoChenNeural', // 選填，見支援聲音列表
   maxSessionDuration: 600,
   voiceSettings: {
     speed: 1.0,
@@ -139,10 +142,10 @@ await handle.stop();
 | 參數 | 類型 | 必填 | 預設值 | 說明 |
 |------|------|------|--------|------|
 | `avatarId` | string | 是 | - | Avatar 角色 ID |
-| `voiceId` | string | 否 | - | 語音 ID，不填則使用 Avatar 預設語音 |
 | `quality` | string | 否 | - | 影像畫質：`very_high`、`high`、`medium`、`low` |
 | `isSandbox` | boolean | 否 | `false` | 是否使用 Sandbox 模式（免費測試，限 60 秒） |
-| `language` | string | 否 | - | 語言代碼，如 `zh-TW`、`en-US` |
+| `useLiteMode` | boolean | 否 | `true` | 使用 Azure TTS（目前固定開啟） |
+| `azureVoiceName` | string | 否 | `zh-TW-HsiaoChenNeural` | Azure TTS 聲音名稱 |
 | `maxSessionDuration` | number | 否 | - | 會話最長時間（秒），Sandbox 最多 60，正式最多 1200 |
 | `mediaElement` | HTMLMediaElement | 否 | - | 用於顯示 Avatar 影像的 `<video>` 元素 |
 | `onEvent` | function | 否 | - | 事件回呼函式 |
@@ -263,6 +266,34 @@ sttSession.stop();
 | `stt-recognizing` | Server → Client | 中間識別結果 |
 | `stt-error` | Server → Client | 錯誤通知 |
 | `stt-stopped` | Server → Client | 識別已停止 |
+
+#### Azure TTS 語音合成 `/liveavatar-speak`
+
+emit `speak` 送出：
+```json
+{
+  "text": "要說的文字",
+  "voiceName": "zh-TW-HsiaoChenNeural",
+  "apiKey": "xxx"
+}
+```
+
+| 事件 | 方向 | 說明 |
+|------|------|------|
+| `speak` | Client → Server | 送出要合成的文字 |
+| `speak-chunk` | Server → Client | PCM 音訊分片 `{ data: base64, index: number }` |
+| `speak-end` | Server → Client | 合成完成 `{ totalChunks: number }` |
+| `speak-error` | Server → Client | 錯誤通知 `{ error: string }` |
+
+音訊格式：RAW 24kHz 16-bit mono PCM（無 header）
+
+支援聲音（`voiceName`）：
+- `zh-TW-HsiaoChenNeural`（預設，女）
+- `zh-TW-HsiaoYuNeural`（女）
+- `zh-TW-YunJheNeural`（男）
+- `en-US-JennyNeural` / `en-US-GuyNeural` / `en-US-AriaNeural`
+- `ja-JP-NanamiNeural` / `ja-JP-KeitaNeural`
+- `vi-VN-HoaiMyNeural` / `vi-VN-NamMinhNeural`
 
 ## 專案結構
 
