@@ -289,11 +289,7 @@
                     <input type="checkbox" id="sandbox-mode">
                     <label for="sandbox-mode" style="font-size: 13px;">Sandbox 模式（免費測試，1 分鐘限制，只能用 Wayne avatar）</label>
                 </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="lite-mode" checked onchange="toggleLiteModeFields()">
-                    <label for="lite-mode" style="font-size: 13px;">LITE Mode（Azure TTS）</label>
-                </div>
-                <div id="lite-mode-fields" style="margin-left: 24px; margin-bottom: 12px;">
+                <div style="margin-bottom: 12px;">
                     <div class="form-group">
                         <label>Azure TTS 聲音</label>
                         <select id="azure-voice-name">
@@ -460,12 +456,6 @@
             el.style.color = color || '#4ade80';
         }
 
-        // --- UI helpers ---
-        function toggleLiteModeFields() {
-            const checked = document.getElementById('lite-mode').checked;
-            document.getElementById('lite-mode-fields').style.display = checked ? 'block' : 'none';
-        }
-
         // --- Init ---
         function getApiKey() {
             return document.getElementById('api-key').value || undefined;
@@ -524,10 +514,7 @@
                 const stability = parseFloat(document.getElementById('voice-stability').value);
                 const maxDuration = parseInt(document.getElementById('max-duration').value) || undefined;
 
-                const useLiteMode = document.getElementById('lite-mode').checked;
-                const azureVoiceName = useLiteMode
-                    ? (document.getElementById('azure-voice-name').value.trim() || undefined)
-                    : undefined;
+                const azureVoiceName = document.getElementById('azure-voice-name').value.trim() || undefined;
 
                 avatarSession = await client.createLiveAvatarSession({
                     avatarId,
@@ -597,10 +584,7 @@
 
         // --- Speak ---
         function getAzureVoiceName() {
-            const liteModeOn = document.getElementById('lite-mode').checked;
-            return liteModeOn
-                ? (document.getElementById('azure-voice-name').value.trim() || undefined)
-                : undefined;
+            return document.getElementById('azure-voice-name').value.trim() || undefined;
         }
 
         function speakText() {
