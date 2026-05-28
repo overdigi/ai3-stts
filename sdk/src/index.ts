@@ -32,6 +32,7 @@ export interface AI3STTSConfig {
   apiUrl: string;
   apiKey?: string;
   enableSTT?: boolean;
+  socketPath?: string; // custom Socket.IO path, e.g. '/stt/socket.io' when behind a sub-path proxy
 }
 
 export interface STTResult {
@@ -176,13 +177,27 @@ export class AI3STTS {
     }
   }
 
+  // When socketPath is set (sub-path proxy), io() must receive only the origin as URL;
+  // the namespace is appended via the second segment of the URL path.
+  // Without socketPath, apiUrl already contains the full base and namespace is appended directly.
+  private ioUrl(namespace: string): string {
+    if (this.config.socketPath) {
+      try {
+        const u = new URL(this.config.apiUrl);
+        return `${u.origin}/${namespace}`;
+      } catch (_) {}
+    }
+    return `${this.config.apiUrl}/${namespace}`;
+  }
+
   // --- STT Methods ---
 
   private getSocket(): Socket {
     if (!this.socket) {
-      this.socket = io(`${this.config.apiUrl}/stt`, {
+      this.socket = io(this.ioUrl('stt'), {
         transports: ['websocket'],
         forceNew: true,
+        ...(this.config.socketPath ? { path: this.config.socketPath } : {}),
       });
 
       this.socket.on('connect', () => {
@@ -435,8 +450,9 @@ export class AI3STTS {
         return;
       }
       if (!liteSocket || !liteSocket.connected) {
-        liteSocket = io(`${this.config.apiUrl}/liveavatar-speak`, {
+        liteSocket = io(this.ioUrl('liveavatar-speak'), {
           transports: ['websocket'],
+          ...(this.config.socketPath ? { path: this.config.socketPath } : {}),
         });
       }
       const chunks: string[] = [];

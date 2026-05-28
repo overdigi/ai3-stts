@@ -461,14 +461,26 @@
             return document.getElementById('api-key').value || undefined;
         }
 
+        function getSocketPath() {
+            const apiUrl = document.getElementById('api-url').value;
+            // If apiUrl contains a sub-path (e.g. https://host/stt), derive socket.io path from it
+            try {
+                const url = new URL(apiUrl);
+                if (url.pathname && url.pathname !== '/') {
+                    return url.pathname.replace(/\/$/, '') + '/socket.io';
+                }
+            } catch (_) {}
+            return undefined;
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            // 自動偵測 API URL：localhost 用 3000，部署環境用當前 origin
+            // 自動偵測 API URL：localhost 用 3000，部署環境用 origin + /stt
             const apiUrlInput = document.getElementById('api-url');
             if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                apiUrlInput.value = window.location.origin;
+                apiUrlInput.value = window.location.origin + '/stt';
             }
             const apiUrl = apiUrlInput.value;
-            client = new AI3STTS({ apiUrl, apiKey: getApiKey() });
+            client = new AI3STTS({ apiUrl, apiKey: getApiKey(), socketPath: getSocketPath() });
             log('SDK 初始化完成');
             loadConfig();
         });
@@ -477,7 +489,7 @@
         async function loadConfig() {
             try {
                 const apiUrl = document.getElementById('api-url').value;
-                client = new AI3STTS({ apiUrl, apiKey: getApiKey() });
+                client = new AI3STTS({ apiUrl, apiKey: getApiKey(), socketPath: getSocketPath() });
 
                 const config = await client.getConfig();
                 if (config.avatarId) document.getElementById('avatar-id').value = config.avatarId;

@@ -69,13 +69,23 @@
                 console.log('[AI3STTS] STT disabled');
             }
         }
+        // When socketPath is set (sub-path proxy), io() must receive only the origin as URL;
+        // the namespace is appended via the second segment of the URL path.
+        // Without socketPath, apiUrl already contains the full base and namespace is appended directly.
+        ioUrl(namespace) {
+            if (this.config.socketPath) {
+                try {
+                    const u = new URL(this.config.apiUrl);
+                    return `${u.origin}/${namespace}`;
+                }
+                catch (_) { }
+            }
+            return `${this.config.apiUrl}/${namespace}`;
+        }
         // --- STT Methods ---
         getSocket() {
             if (!this.socket) {
-                this.socket = socket_ioClient.io(`${this.config.apiUrl}/stt`, {
-                    transports: ['websocket'],
-                    forceNew: true,
-                });
+                this.socket = socket_ioClient.io(this.ioUrl('stt'), Object.assign({ transports: ['websocket'], forceNew: true }, (this.config.socketPath ? { path: this.config.socketPath } : {})));
                 this.socket.on('connect', () => {
                     console.log('[AI3STTS] WebSocket connected');
                 });
@@ -287,9 +297,7 @@
                     return;
                 }
                 if (!liteSocket || !liteSocket.connected) {
-                    liteSocket = socket_ioClient.io(`${this.config.apiUrl}/liveavatar-speak`, {
-                        transports: ['websocket'],
-                    });
+                    liteSocket = socket_ioClient.io(this.ioUrl('liveavatar-speak'), Object.assign({ transports: ['websocket'] }, (this.config.socketPath ? { path: this.config.socketPath } : {})));
                 }
                 const chunks = [];
                 const onChunk = (data) => {
