@@ -1,0 +1,14 @@
+[
+  {
+    "match": "長照",
+    "ssml": "<sub alias=\"長照\">長照</sub>"
+  },
+  {
+    "match": "待命",
+    "ssml": "<sub alias=\"帶命\">待命</sub>"
+  },
+  {
+    "match": "長期",
+    "ssml": "<sub alias=\"長期\">長期</sub>"
+  }
+]

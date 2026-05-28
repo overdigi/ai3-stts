@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
+import { PhonemeService } from './phoneme.service';
 
 export interface AzureTtsOptions {
   text: string;
@@ -19,7 +20,7 @@ export class AzureTtsService {
   private readonly speechKey: string;
   private readonly speechRegion: string;
 
-  constructor() {
+  constructor(private readonly phonemeService: PhonemeService) {
     const speechKey = process.env.AZURE_SPEECH_KEY;
     const speechRegion = process.env.AZURE_SPEECH_REGION;
 
@@ -36,14 +37,10 @@ export class AzureTtsService {
 
   /**
    * Synthesize speech to raw PCM (24kHz, 16-bit, mono, little-endian, no header).
-   * Returns the full audio buffer.
+   * Automatically applies phoneme fixes from config/phoneme-fixes.json when needed.
    */
   async synthesizePcm(options: AzureTtsOptions): Promise<Buffer> {
     const { text, voiceName } = options;
-
-    this.logger.log(
-      `Azure TTS: voiceName=${voiceName}, textLen=${text.length}`,
-    );
 
     const speechConfig = sdk.SpeechConfig.fromSubscription(
       this.speechKey,
@@ -54,30 +51,35 @@ export class AzureTtsService {
     speechConfig.speechSynthesisOutputFormat =
       sdk.SpeechSynthesisOutputFormat.Raw24Khz16BitMonoPcm;
 
-    // No AudioConfig → result.audioData carries the bytes (no playback side-effect)
     const synthesizer = new sdk.SpeechSynthesizer(speechConfig, undefined);
 
     try {
+      const ssmlContent = this.phonemeService.applyFixes(text);
+      const useSsml = ssmlContent !== null;
+
+      this.logger.log(
+        `Azure TTS: voiceName=${voiceName}, textLen=${text.length}, ssml=${useSsml}`,
+      );
+
       const audioData = await new Promise<ArrayBuffer>((resolve, reject) => {
-        synthesizer.speakTextAsync(
-          text,
-          (result) => {
-            if (
-              result.reason === sdk.ResultReason.SynthesizingAudioCompleted
-            ) {
-              resolve(result.audioData);
-            } else {
-              const reason = sdk.ResultReason[result.reason];
-              const details = result.errorDetails || 'unknown error';
-              reject(
-                new Error(`Azure TTS 合成失敗 [${reason}]: ${details}`),
-              );
-            }
-          },
-          (err) => {
-            reject(new Error(`Azure TTS 錯誤: ${err}`));
-          },
-        );
+        const onResult = (result: sdk.SpeechSynthesisResult) => {
+          if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
+            resolve(result.audioData);
+          } else {
+            const reason = sdk.ResultReason[result.reason];
+            const details = result.errorDetails || 'unknown error';
+            reject(new Error(`Azure TTS 合成失敗 [${reason}]: ${details}`));
+          }
+        };
+        const onError = (err: string) => reject(new Error(`Azure TTS 錯誤: ${err}`));
+
+        if (useSsml) {
+          const ssml = this.phonemeService.buildSsml(ssmlContent, voiceName);
+          this.logger.debug(`SSML: ${ssml}`);
+          synthesizer.speakSsmlAsync(ssml, onResult, onError);
+        } else {
+          synthesizer.speakTextAsync(text, onResult, onError);
+        }
       });
 
       return Buffer.from(audioData);
